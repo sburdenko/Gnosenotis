@@ -1,10 +1,10 @@
 import type { NextConfig } from "next";
 
-// GitHub Pages serves this repo at https://<user>.github.io/unity-interview-nextjs/,
+// GitHub Pages serves this repo at https://<user>.github.io/Gnosenotis/,
 // not from the domain root, so every internal link/asset needs that path
 // prefix — that's what `basePath`/`assetPrefix` do below. Only apply it in
 // production builds so `next dev` still runs at the plain localhost root.
-const REPO_NAME = "unity-interview-nextjs";
+const REPO_NAME = "Gnosenotis";
 const isProd = process.env.NODE_ENV === "production";
 
 const nextConfig: NextConfig = {

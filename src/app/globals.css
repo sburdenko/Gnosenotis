@@ -1,53 +1,168 @@
 @import "tailwindcss";
 
 /*
- * Design tokens for the (permanently dark) interview-prep theme, ported
- * 1:1 from the legacy `:root { --bg: ... }` variables in
- * legacy/unity-interview-100.html.
- *
- * Tailwind v4 learning note: there is no `tailwind.config.js` anymore for a
- * project this size — `@theme` below is how you register *your own* design
- * tokens so Tailwind generates matching utilities for you. Defining
- * `--color-panel` here is what makes `bg-panel` / `border-panel` / etc.
- * available as utility classes throughout the app, the same way `bg-white`
- * or `text-slate-500` are built in.
+ * Design tokens ported from the "card catalog" design handoff
+ * (design_handoff_unity_board/tokens/globals.css). Tailwind v4 learning
+ * note: `@theme` is how a project this size registers its own tokens instead
+ * of a `tailwind.config.js` — every `--color-*` / `--font-*` / `--shadow-*`
+ * below becomes a matching utility class (`bg-cork`, `font-hand`,
+ * `shadow-card`, ...) with no extra configuration.
  */
 @theme {
-  --color-bg: #0d1117;
-  --color-panel: #161b22;
-  --color-panel-2: #1c2330;
-  --color-line: #252d3a;
-  --color-txt: #e6edf3;
-  --color-muted: #8b949e;
-  --color-accent: #58a6ff;
-  --color-accent-2: #f78166;
-  --color-ok: #3fb950;
+  --color-cork: #b3824a;
+  --color-wood: #8f6534;
+  --color-wood-dark: #7a5429;
+  --color-paper: #fffdf7;
+  --color-kraft: #f6efdd;
+  --color-kraft-dim: #e6d8b8;
+  --color-kraft-hover: #f0e4c8;
+  --color-ink: #241a10;
+  --color-ink-body: #33261a;
+  --color-ink-muted: #9a8b6f;
+  --color-ink-count: #8b7f66;
+  --color-accent: #9b2f22;
+  --color-accent-hover: #b03828;
+  --color-accent-shadow: #6d1e14;
+  --color-link: #1c3f6e;
+  --color-link-hover: #8c2f1d;
+  --color-hand: #7a4a1e;
+  --color-sticky: #fff59b;
+  --color-sticky-ink: #3b2f10;
+  --color-cream: #fdf6e6;
+  --color-cream-dim: #f3e0bb;
+  --color-cream-soft: #f0dcb4;
+  --color-gold: #e8cfa0;
+
+  --font-serif: var(--font-pt-serif), Georgia, serif;
+  --font-display: var(--font-oswald), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+  --font-hand: var(--font-caveat), cursive;
+
+  --shadow-pin: 1px 3px 4px rgba(0, 0, 0, 0.4);
+  --shadow-card: 2px 5px 14px rgba(40, 20, 0, 0.34);
+  --shadow-card-hover: 3px 9px 20px rgba(40, 20, 0, 0.4);
+  --shadow-tab: 2px 3px 7px rgba(40, 20, 0, 0.25);
+  --shadow-tab-active: 2px 3px 7px rgba(40, 20, 0, 0.3);
+  --shadow-header: 0 6px 18px rgba(40, 20, 0, 0.4);
+  --shadow-board: inset 0 0 70px rgba(60, 35, 10, 0.4);
+  --shadow-paper-inset: inset 0 2px 5px rgba(90, 70, 30, 0.25);
+  --shadow-button: 0 3px 0 #6d1e14;
+  --shadow-button-active: 0 1px 0 #6d1e14;
 }
 
 body {
-  background: var(--color-bg);
-  color: var(--color-txt);
+  background: #e8e3d7;
+  color: var(--color-ink-body);
+}
+
+/* --- Textures: kept as plain CSS rather than Tailwind arbitrary values —
+       multi-layer `background-image` lists with commas are unreadable
+       squeezed into a class name. --- */
+
+.tex-cork {
+  background-color: #b3824a;
+  background-image:
+    radial-gradient(rgba(85, 50, 18, 0.24) 1.2px, transparent 1.3px),
+    radial-gradient(rgba(255, 235, 200, 0.18) 1px, transparent 1.1px);
+  background-size:
+    10px 10px,
+    15px 15px;
+  background-position:
+    0 0,
+    4px 6px;
+}
+
+.tex-paper-ruled {
+  background-color: #fffdf7;
+  background-image: repeating-linear-gradient(to bottom, transparent 0 25px, rgba(70, 110, 150, 0.16) 25px 26px);
+}
+
+.tex-wood {
+  background-image:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.05) 0 2px, transparent 2px 6px),
+    linear-gradient(#8f6534, #7a5429);
+}
+
+/* Rubber-stamp button treatment for the "Deep dive" call to action. */
+.stamp {
+  border: 3px double var(--color-accent);
+  color: var(--color-accent);
+  opacity: 0.72;
+  transform: rotate(-7deg);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+  cursor: pointer;
+}
+.stamp:hover,
+.stamp:focus-visible {
+  opacity: 1;
+  transform: rotate(-3deg);
+}
+
+/*
+ * Pinned-card tilt: applied as a CSS variable (`--tilt`, set inline per card
+ * in PinnedCardShell) rather than a Tailwind utility, since the angle is a
+ * computed float, not one of a fixed set of class values. Doing the hover
+ * lift in plain CSS instead of a JS mouseenter/mouseleave handler means it
+ * naturally respects `prefers-reduced-motion` and touch devices (which don't
+ * have real hover) below, with no extra JS.
+ */
+.pin-card {
+  transform: rotate(var(--tilt, 0deg));
+}
+@media (hover: hover) {
+  .pin-card:hover {
+    transform: rotate(var(--tilt, 0deg)) translateY(-3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pin-card {
+    transition: box-shadow 0.18s ease !important;
+  }
+  .pin-card:hover {
+    transform: rotate(var(--tilt, 0deg)) !important;
+  }
+}
+/* Per the design handoff: below the prototype's ~1020px target, tilts read as noise, not charm. */
+@media (max-width: 767px) {
+  .pin-card {
+    transform: none;
+  }
+}
+@media (max-width: 767px) and (hover: hover) {
+  .pin-card:hover {
+    transform: translateY(-3px);
+  }
+}
+
+/* <mark> is our search-highlight, styled as a yellow sticky-note swipe rather than a browser default. */
+mark {
+  background: var(--color-sticky);
+  color: var(--color-sticky-ink);
+  border-radius: 1px;
 }
 
 /*
  * Styling for trusted, hand-authored HTML that ships inside our data files
- * (answer bodies and deep-dive lessons — see the comments on `Question.a`
- * in src/types/content.ts for why rendering raw HTML here is safe).
- *
- * These are plain element/class selectors instead of Tailwind utilities
- * because the HTML itself lives in src/data/*.ts as strings, not JSX — we
- * can't attach a `className` to a `<pre>` we never hand-authored as a tag.
- * Scoping everything under `.legacy-html` keeps these rules from leaking
- * into the rest of the app.
+ * (question answers and deep-dive lesson bodies — see the comment on
+ * `Question.a` in src/types/content.ts for why rendering raw HTML here is
+ * safe). Plain element/class selectors, not Tailwind utilities, because this
+ * HTML lives in src/data/*.ts as strings, not JSX — there's no tag here to
+ * attach a `className` to.
  */
 .legacy-html h3 {
-  margin: 26px 0 8px;
-  font-size: 16.5px;
+  margin: 22px 0 8px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--color-accent);
 }
 .legacy-html p {
   margin: 10px 0;
-  font-size: 14.5px;
+  font-size: 15.5px;
   line-height: 1.65;
 }
 .legacy-html ul {
@@ -56,68 +171,72 @@ body {
 }
 .legacy-html li {
   margin: 5px 0;
-  font-size: 14.5px;
+  font-size: 15.5px;
   line-height: 1.55;
 }
 .legacy-html code {
-  background: #0b1622;
-  border: 1px solid var(--color-line);
-  border-radius: 4px;
+  background: var(--color-kraft-dim);
+  border: 1px solid rgba(80, 50, 15, 0.28);
+  border-radius: 3px;
   padding: 1px 5px;
-  font-size: 0.88em;
-  color: #79c0ff;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--color-accent);
 }
 .legacy-html pre {
   margin: 12px 0;
   padding: 13px 15px;
   overflow-x: auto;
-  border: 1px solid var(--color-line);
-  border-radius: 8px;
-  background: #0b1622;
-  color: #c9d8ea;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  border-radius: 3px;
+  background: var(--color-ink);
+  color: #e9dcc4;
+  font-family: var(--font-mono);
   font-size: 12.8px;
   line-height: 1.55;
 }
-.legacy-html pre .cm { color: #7d8b9d; } /* comment */
-.legacy-html pre .k { color: #ff7b72; } /* keyword */
-.legacy-html pre .s { color: #a5d6ff; } /* string */
+.legacy-html pre .cm {
+  color: #a3927a;
+} /* comment */
+.legacy-html pre .k {
+  color: #ff9a7a;
+} /* keyword */
+.legacy-html pre .s {
+  color: #ffd98a;
+} /* string */
 .legacy-html .tip,
 .legacy-html .warn {
   margin: 14px 0;
   padding: 11px 14px;
-  border-radius: 8px;
-  font-size: 13.5px;
+  border-radius: 3px;
+  font-size: 14.5px;
 }
 .legacy-html .tip {
-  background: rgba(63, 185, 80, 0.08);
-  border: 1px solid rgba(63, 185, 80, 0.3);
+  background: rgba(47, 122, 28, 0.1);
+  border: 1px solid rgba(47, 122, 28, 0.35);
 }
 .legacy-html .warn {
-  background: rgba(247, 129, 102, 0.08);
-  border: 1px solid rgba(247, 129, 102, 0.35);
+  background: rgba(155, 47, 34, 0.09);
+  border: 1px solid rgba(155, 47, 34, 0.35);
 }
 .legacy-html .links {
-  margin-top: 28px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-line);
+  margin-top: 24px;
+  padding-top: 14px;
+  border-top: 2px solid rgba(170, 50, 40, 0.45);
 }
-.legacy-html .links h3 { margin-top: 0; }
+.legacy-html .links h3 {
+  margin-top: 0;
+}
 .legacy-html .links a {
-  color: var(--color-accent);
+  color: var(--color-link);
   font-weight: 600;
   text-decoration: none;
 }
-.legacy-html .links a:hover { text-decoration: underline; }
-.legacy-html .links li span {
-  color: var(--color-muted);
-  font-size: 12.5px;
+.legacy-html .links a:hover {
+  color: var(--color-link-hover);
+  text-decoration: underline;
 }
-
-/* <mark> is used by our search-highlighting component, not legacy HTML. */
-mark {
-  background: rgba(88, 166, 255, 0.28);
-  color: inherit;
-  border-radius: 2px;
+.legacy-html .links li span {
+  color: var(--color-ink-muted);
+  font-size: 13px;
 }
