@@ -1,0 +1,123 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens for the (permanently dark) interview-prep theme, ported
+ * 1:1 from the legacy `:root { --bg: ... }` variables in
+ * legacy/unity-interview-100.html.
+ *
+ * Tailwind v4 learning note: there is no `tailwind.config.js` anymore for a
+ * project this size — `@theme` below is how you register *your own* design
+ * tokens so Tailwind generates matching utilities for you. Defining
+ * `--color-panel` here is what makes `bg-panel` / `border-panel` / etc.
+ * available as utility classes throughout the app, the same way `bg-white`
+ * or `text-slate-500` are built in.
+ */
+@theme {
+  --color-bg: #0d1117;
+  --color-panel: #161b22;
+  --color-panel-2: #1c2330;
+  --color-line: #252d3a;
+  --color-txt: #e6edf3;
+  --color-muted: #8b949e;
+  --color-accent: #58a6ff;
+  --color-accent-2: #f78166;
+  --color-ok: #3fb950;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-txt);
+}
+
+/*
+ * Styling for trusted, hand-authored HTML that ships inside our data files
+ * (answer bodies and deep-dive lessons — see the comments on `Question.a`
+ * in src/types/content.ts for why rendering raw HTML here is safe).
+ *
+ * These are plain element/class selectors instead of Tailwind utilities
+ * because the HTML itself lives in src/data/*.ts as strings, not JSX — we
+ * can't attach a `className` to a `<pre>` we never hand-authored as a tag.
+ * Scoping everything under `.legacy-html` keeps these rules from leaking
+ * into the rest of the app.
+ */
+.legacy-html h3 {
+  margin: 26px 0 8px;
+  font-size: 16.5px;
+  color: var(--color-accent);
+}
+.legacy-html p {
+  margin: 10px 0;
+  font-size: 14.5px;
+  line-height: 1.65;
+}
+.legacy-html ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+.legacy-html li {
+  margin: 5px 0;
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+.legacy-html code {
+  background: #0b1622;
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.88em;
+  color: #79c0ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.legacy-html pre {
+  margin: 12px 0;
+  padding: 13px 15px;
+  overflow-x: auto;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: #0b1622;
+  color: #c9d8ea;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.8px;
+  line-height: 1.55;
+}
+.legacy-html pre .cm { color: #7d8b9d; } /* comment */
+.legacy-html pre .k { color: #ff7b72; } /* keyword */
+.legacy-html pre .s { color: #a5d6ff; } /* string */
+.legacy-html .tip,
+.legacy-html .warn {
+  margin: 14px 0;
+  padding: 11px 14px;
+  border-radius: 8px;
+  font-size: 13.5px;
+}
+.legacy-html .tip {
+  background: rgba(63, 185, 80, 0.08);
+  border: 1px solid rgba(63, 185, 80, 0.3);
+}
+.legacy-html .warn {
+  background: rgba(247, 129, 102, 0.08);
+  border: 1px solid rgba(247, 129, 102, 0.35);
+}
+.legacy-html .links {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-line);
+}
+.legacy-html .links h3 { margin-top: 0; }
+.legacy-html .links a {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.legacy-html .links a:hover { text-decoration: underline; }
+.legacy-html .links li span {
+  color: var(--color-muted);
+  font-size: 12.5px;
+}
+
+/* <mark> is used by our search-highlighting component, not legacy HTML. */
+mark {
+  background: rgba(88, 166, 255, 0.28);
+  color: inherit;
+  border-radius: 2px;
+}

@@ -1,0 +1,72 @@
+/**
+ * Curated LeetCode problems, grouped by difficulty. Extracted verbatim
+ * from the legacy HTML app.
+ */
+import type { LeetCodeGroup } from "@/types/content";
+
+export const leetcodeGroups: LeetCodeGroup[] = 
+[
+{g:"Easy — warm-up",gru:"Easy — разминка",d:"easy",items:[
+ {t:"Two Sum",s:"two-sum",k:"Hash map",core:1,why:"The hash-map reflex. If you reach for a nested loop here, everything later will be slow.",whyru:"Рефлекс хэш-мапы. Если тянетесь к вложенному циклу — дальше всё будет медленно."},
+ {t:"Contains Duplicate",s:"contains-duplicate",k:"Hash set",why:"Set vs sort trade-off, one minute answer.",whyru:"Компромисс set против сортировки, ответ на минуту."},
+ {t:"Valid Anagram",s:"valid-anagram",k:"Counting",why:"Counting array vs dictionary — the same choice you make for gameplay stat buckets.",whyru:"Массив-счётчик против словаря — тот же выбор, что и для «корзин» статов в геймплее."},
+ {t:"Binary Search",s:"binary-search",k:"Binary search",core:1,why:"Write it bug-free from memory, including the mid overflow and boundary conditions.",whyru:"Написать без багов по памяти, включая переполнение mid и граничные условия."},
+ {t:"Best Time to Buy and Sell Stock",s:"best-time-to-buy-and-sell-stock",k:"One pass",why:"Running minimum in a single pass — the pattern behind most streaming metrics.",whyru:"Бегущий минимум за один проход — паттерн большинства потоковых метрик."},
+ {t:"Move Zeroes",s:"move-zeroes",k:"Two pointers",core:1,why:"In-place compaction — exactly how you remove dead entities from an array without allocating.",whyru:"Уплотнение на месте — ровно так убирают мёртвые сущности из массива без аллокаций."},
+ {t:"Squares of a Sorted Array",s:"squares-of-a-sorted-array",k:"Two pointers",why:"Two pointers from both ends; trains the merge-in-place instinct.",whyru:"Два указателя с концов; тренирует инстинкт слияния на месте."},
+ {t:"Merge Two Sorted Lists",s:"merge-two-sorted-lists",k:"Linked list",why:"Pointer surgery without off-by-one errors.",whyru:"Работа с указателями без ошибок на единицу."},
+ {t:"Linked List Cycle",s:"linked-list-cycle",k:"Fast/slow",why:"Floyd's algorithm — also how you detect cycles in a dependency or prefab graph.",whyru:"Алгоритм Флойда — так же ищут циклы в графе зависимостей или префабов."},
+ {t:"Climbing Stairs",s:"climbing-stairs",k:"DP intro",why:"The smallest possible DP; get the recurrence-to-iteration conversion automatic.",whyru:"Минимальный DP; перевод рекуррентности в итерацию должен быть автоматическим."},
+ {t:"Flood Fill",s:"flood-fill",k:"DFS/BFS grid",core:1,why:"Literally the paint-bucket and terrain-region algorithm. Know both recursive and stack versions.",whyru:"Буквально алгоритм заливки и выделения регионов террейна. Знать рекурсивную и стековую версии."},
+ {t:"Island Perimeter",s:"island-perimeter",k:"Grid",why:"Neighbour counting on a grid — same maths as tile borders and mesh edge detection.",whyru:"Подсчёт соседей на сетке — та же математика, что для границ тайлов и рёбер меша."},
+ {t:"Number of 1 Bits",s:"number-of-1-bits",k:"Bitwise",core:1,why:"Bit tricks matter for layer masks, flags and ECS component queries.",whyru:"Битовые трюки нужны для масок слоёв, флагов и запросов компонентов в ECS."},
+ {t:"Missing Number",s:"missing-number",k:"XOR / math",why:"XOR and sum tricks; a classic quick screen question.",whyru:"Трюки с XOR и суммой; классика быстрого скрининга."},
+ {t:"Valid Parentheses",s:"valid-parentheses",k:"Stack",why:"Stack fundamentals — the same shape as undo stacks and state machines.",whyru:"База по стекам — та же форма, что у стеков undo и стейт-машин."},
+ {t:"Valid Palindrome",s:"valid-palindrome",k:"Two pointers",why:"Two pointers from both ends with character filtering — a 5-minute screen staple.",whyru:"Два указателя с концов с фильтрацией символов — постоянный гость пятиминутного скрининга."},
+ {t:"Reverse Linked List",s:"reverse-linked-list",k:"Linked list",core:1,why:"The most-asked list question, period. Write it iteratively without notes; know the recursive form.",whyru:"Самый спрашиваемый вопрос по спискам вообще. Итеративно — без шпаргалки, рекурсивную форму знать."},
+ {t:"Maximum Depth of Binary Tree",s:"maximum-depth-of-binary-tree",k:"Tree / DFS",why:"The one-line recursion that opens every tree conversation; also do it with BFS by levels.",whyru:"Однострочная рекурсия, с которой начинается любой разговор о деревьях; сделайте и через BFS по уровням."}
+]},
+{g:"Medium — the interview core",gru:"Medium — ядро собеседований",d:"med",items:[
+ {t:"Number of Islands",s:"number-of-islands",k:"BFS/DFS grid",core:1,why:"The single most likely grid question. Connected components = rooms, chunks, navmesh regions.",whyru:"Самый вероятный вопрос про сетку. Компоненты связности = комнаты, чанки, регионы навмеша."},
+ {t:"Rotting Oranges",s:"rotting-oranges",k:"Multi-source BFS",core:1,why:"Wave propagation from many sources — fire spread, influence maps, threat propagation.",whyru:"Волна из многих источников — распространение огня, карты влияния, распространение угрозы."},
+ {t:"01 Matrix",s:"01-matrix",k:"BFS distance field",core:1,why:"Builds a distance field — the CPU analogue of an SDF, used for AI cover and flow fields.",whyru:"Строит поле расстояний — CPU-аналог SDF, используется для укрытий ИИ и flow field."},
+ {t:"Word Search",s:"word-search",k:"Backtracking",why:"Grid DFS with state restore — the discipline behind any procedural placement search.",whyru:"DFS по сетке с восстановлением состояния — дисциплина любого поиска при процедурной расстановке."},
+ {t:"Pacific Atlantic Water Flow",s:"pacific-atlantic-water-flow",k:"Reverse BFS",why:"Reverse traversal from targets — how you build flow fields instead of pathing per agent.",whyru:"Обход в обратную сторону от целей — так строят flow field вместо пути на каждого агента."},
+ {t:"Course Schedule",s:"course-schedule",k:"Topological sort",core:1,why:"Dependency ordering with cycle detection — asset bundles, build graphs, ability trees.",whyru:"Порядок зависимостей с поиском циклов — бандлы ассетов, графы сборки, деревья способностей."},
+ {t:"Clone Graph",s:"clone-graph",k:"Graph + map",why:"Deep copy with a visited map — exactly how you clone a prefab graph or a save structure.",whyru:"Глубокая копия с картой посещённых — ровно так клонируют граф префаба или структуру сейва."},
+ {t:"Network Delay Time",s:"network-delay-time",k:"Dijkstra",core:1,why:"Dijkstra with a priority queue — the base A* is built on. Know the heap complexity.",whyru:"Дейкстра с приоритетной очередью — база, на которой строится A*. Знать сложность с кучей."},
+ {t:"Path With Minimum Effort",s:"path-with-minimum-effort",k:"Dijkstra on grid",core:1,why:"Weighted grid pathing with a custom cost function — literally terrain traversal cost.",whyru:"Поиск пути по взвешенной сетке с кастомной функцией цены — буквально стоимость прохода по террейну."},
+ {t:"Merge Intervals",s:"merge-intervals",k:"Sorting + sweep",core:1,why:"Timeline merging — animation clips, cooldowns, broadphase AABB sweeps.",whyru:"Слияние на таймлайне — клипы анимации, кулдауны, broadphase-свипы AABB."},
+ {t:"Insert Interval",s:"insert-interval",k:"Intervals",why:"The in-place variant; tests careful boundary handling.",whyru:"Вариант на месте; проверяет аккуратность с границами."},
+ {t:"Non-overlapping Intervals",s:"non-overlapping-intervals",k:"Greedy",why:"Greedy scheduling proof — useful for reasoning about scheduling systems out loud.",whyru:"Доказательство жадного планирования — помогает вслух рассуждать о системах планирования."},
+ {t:"LRU Cache",s:"lru-cache",k:"Design",core:1,why:"Design round favourite, and it is exactly an asset/texture cache with eviction.",whyru:"Любимая задача дизайн-секции, и это ровно кэш ассетов/текстур с вытеснением."},
+ {t:"Min Stack",s:"min-stack",k:"Design",why:"Auxiliary state alongside a structure — cheap O(1) tricks people forget under pressure.",whyru:"Вспомогательное состояние рядом со структурой — дешёвые O(1) трюки, которые забывают под давлением."},
+ {t:"Implement Trie",s:"implement-trie-prefix-tree",k:"Design",why:"Prefix structures for console commands, localisation keys, asset path lookup.",whyru:"Префиксные структуры для консольных команд, ключей локализации, поиска по путям ассетов."},
+ {t:"Kth Largest Element in an Array",s:"kth-largest-element-in-an-array",k:"Heap / quickselect",core:1,why:"Heap vs quickselect trade-off — the top-N selection you do for nearest enemies or lights.",whyru:"Куча против quickselect — выбор top-N, как для ближайших врагов или источников света."},
+ {t:"Top K Frequent Elements",s:"top-k-frequent-elements",k:"Heap / bucket",why:"Bucket sort insight beats the obvious heap answer; good signal of depth.",whyru:"Идея с корзинами лучше очевидной кучи; хороший сигнал глубины."},
+ {t:"Product of Array Except Self",s:"product-of-array-except-self",k:"Prefix/suffix",core:1,why:"Prefix/suffix passes without division — the mindset behind prefix sums and scan operations.",whyru:"Проходы префикс/суффикс без деления — мышление префиксных сумм и scan-операций."},
+ {t:"Maximum Subarray",s:"maximum-subarray",k:"Kadane",why:"Kadane's algorithm; be ready to explain why the greedy reset is correct.",whyru:"Алгоритм Кадане; уметь объяснить, почему жадный сброс корректен."},
+ {t:"Longest Substring Without Repeating Characters",s:"longest-substring-without-repeating-characters",k:"Sliding window",core:1,why:"The sliding window template you will reuse in half the medium problems.",whyru:"Шаблон скользящего окна, который переиспользуется в половине medium-задач."},
+ {t:"Search in Rotated Sorted Array",s:"search-in-rotated-sorted-array",k:"Binary search",why:"Binary search on a broken invariant — where most people fail live.",whyru:"Бинарный поиск по нарушенному инварианту — здесь чаще всего сыплются вживую."},
+ {t:"Rotate Image",s:"rotate-image",k:"Matrix",core:1,why:"In-place matrix transpose + reverse. Matrix intuition is directly relevant to transforms.",whyru:"Транспонирование и разворот матрицы на месте. Интуиция по матрицам напрямую относится к трансформам."},
+ {t:"Spiral Matrix",s:"spiral-matrix",k:"Matrix",why:"Pure boundary management — traversal order for chunk loading and tile spirals.",whyru:"Чистая работа с границами — порядок обхода для загрузки чанков и спиралей тайлов."},
+ {t:"Set Matrix Zeroes",s:"set-matrix-zeroes",k:"Matrix",why:"O(1) space trick using the matrix itself as bookkeeping.",whyru:"Трюк с O(1) памятью: сама матрица используется как хранилище пометок."},
+ {t:"Coin Change",s:"coin-change",k:"DP",core:1,why:"Canonical unbounded knapsack — crafting costs, loot budgets, upgrade paths.",whyru:"Классический безграничный рюкзак — стоимость крафта, бюджеты лута, ветки апгрейдов."},
+ {t:"Unique Paths",s:"unique-paths",k:"DP grid",why:"Grid DP baseline; extend it to obstacles in the follow-up.",whyru:"База DP на сетке; в продолжении расширяется на препятствия."},
+ {t:"Jump Game",s:"jump-game",k:"Greedy",why:"Greedy reachability — trains proving correctness rather than pattern-matching.",whyru:"Жадная достижимость — учит доказывать корректность, а не угадывать паттерн."},
+ {t:"Subsets",s:"subsets",k:"Backtracking",why:"Combinatorial generation — procedural variation and test-case generation.",whyru:"Комбинаторная генерация — процедурные вариации и генерация тест-кейсов."},
+ {t:"Permutations",s:"permutations",k:"Backtracking",why:"Backtracking with swap vs copy — the allocation-conscious version matters here.",whyru:"Бэктрекинг через swap против копий — здесь важна версия, экономящая аллокации."},
+ {t:"Validate Binary Search Tree",s:"validate-binary-search-tree",k:"Tree",why:"Bounds propagation in recursion; a common quick tree filter question.",whyru:"Проброс границ в рекурсии; частый быстрый фильтр по деревьям."}
+]},
+{g:"Hard — the differentiators",gru:"Hard — то, что отличает",d:"hard",items:[
+ {t:"Trapping Rain Water",s:"trapping-rain-water",k:"Two pointers",core:1,why:"Three valid solutions with different space costs — a great think-out-loud problem.",whyru:"Три корректных решения с разной памятью — отличная задача, чтобы рассуждать вслух."},
+ {t:"Shortest Path in a Grid with Obstacles Elimination",s:"shortest-path-in-a-grid-with-obstacles-elimination",k:"BFS with state",core:1,why:"BFS over an extended state space — how you path with resources, keys, or fuel.",whyru:"BFS по расширенному пространству состояний — поиск пути с ресурсами, ключами или топливом."},
+ {t:"Swim in Rising Water",s:"swim-in-rising-water",k:"Dijkstra / binary search",why:"Minimax path cost — the bottleneck-path formulation used in terrain traversal.",whyru:"Минимакс по стоимости пути — формулировка bottleneck-пути, применяемая при проходе по террейну."},
+ {t:"Word Ladder",s:"word-ladder",k:"BFS on implicit graph",why:"Graph where edges are computed, not stored — the mental model for large state searches.",whyru:"Граф, где рёбра вычисляются, а не хранятся — модель мышления для больших поисков по состояниям."},
+ {t:"Sliding Window Maximum",s:"sliding-window-maximum",k:"Monotonic deque",core:1,why:"Monotonic structures — rolling max for frame-time windows and smoothing.",whyru:"Монотонные структуры — скользящий максимум для окон времени кадра и сглаживания."},
+ {t:"Merge k Sorted Lists",s:"merge-k-sorted-lists",k:"Heap",why:"K-way merge with a heap — event queue merging across systems.",whyru:"K-путевое слияние с кучей — объединение очередей событий из разных систем."},
+ {t:"LFU Cache",s:"lfu-cache",k:"Design",why:"Harder eviction policy; shows whether your LRU answer was memorised or understood.",whyru:"Более сложная политика вытеснения; показывает, был ли ответ про LRU выучен или понят."},
+ {t:"Serialize and Deserialize Binary Tree",s:"serialize-and-deserialize-binary-tree",k:"Design",core:1,why:"Format design and round-tripping — directly the save-system conversation.",whyru:"Проектирование формата и round-trip — прямой мост к разговору про систему сохранений."},
+ {t:"Minimum Window Substring",s:"minimum-window-substring",k:"Sliding window",why:"The hardest standard window problem; if you can do it live, windows are solved for you.",whyru:"Самая сложная стандартная оконная задача; если решаете вживую — окна для вас закрыты."},
+ {t:"Median of Two Sorted Arrays",s:"median-of-two-sorted-arrays",k:"Binary search",why:"Partition-based binary search. Low practical value, high interview frequency.",whyru:"Бинарный поиск по разбиению. Практической пользы мало, на собесах встречается часто."}
+]}];
