@@ -99,7 +99,7 @@ export function QuestionsBoard({ questions }: { questions: Question[] }) {
           </div>
 
           {filtered.length > 0 ? (
-            <div className="grid gap-[22px] md:grid-cols-2">
+            <div className="grid items-start gap-[22px] md:grid-cols-2">
               {filtered.map((q, i) => (
                 <PinnedQuestionCard
                   key={q.n}

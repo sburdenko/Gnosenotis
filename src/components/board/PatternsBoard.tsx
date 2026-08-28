@@ -1,7 +1,6 @@
 "use client";
 
-import { useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
-import { flushSync } from "react-dom";
+import { useMemo, useState } from "react";
 import type { AlgoPattern, LeetCodeGroup, PatternGroup, PatternId } from "@/types/content";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useProgressSet } from "@/hooks/useProgressSet";
@@ -15,25 +14,18 @@ import { EmptyState } from "./EmptyState";
 
 const PROGRESS_KEY = "unity-patterns-progress";
 
-/** What `BoardShell` can ask this board to do from another tab. */
-export interface PatternsBoardHandle {
-  focusPattern: (id: PatternId) => void;
-}
-
 interface PatternsBoardProps {
   patternGroups: PatternGroup[];
   /** Used to derive which problems practise each pattern. */
   leetcodeGroups: LeetCodeGroup[];
-  ref?: Ref<PatternsBoardHandle>;
 }
 
-export function PatternsBoard({ patternGroups, leetcodeGroups, ref }: PatternsBoardProps) {
+export function PatternsBoard({ patternGroups, leetcodeGroups }: PatternsBoardProps) {
   const { t, pick } = useLanguage();
   const [term, setTerm] = useState("");
   const [activeGroup, setActiveGroup] = useState("all");
   const [openIds, setOpenIds] = useState<Set<PatternId>>(new Set());
   const { done: learned, toggle: toggleLearned, count: learnedCount } = useProgressSet(PROGRESS_KEY);
-  const cardRefs = useRef(new Map<PatternId, HTMLDivElement>());
 
   const usage = useMemo(() => buildPatternUsage(leetcodeGroups), [leetcodeGroups]);
   const total = useMemo(() => patternGroups.reduce((sum, g) => sum + g.items.length, 0), [patternGroups]);
@@ -60,37 +52,6 @@ export function PatternsBoard({ patternGroups, leetcodeGroups, ref }: PatternsBo
       }))
       .filter((group) => group.items.length > 0);
   }, [patternGroups, activeGroup, needle]);
-
-  /*
-   * Jumping here from a pattern chip on a LeetCode card is an *action*, not
-   * a piece of state to keep in sync, so it is exposed as an imperative
-   * handle called straight from that click handler rather than as a
-   * `focusedPattern` prop reconciled in an effect (which React flags as a
-   * cascading render, and which would also have to be cleared afterwards).
-   *
-   * The filters are reset because the target card may be filtered out of the
-   * DOM entirely, and `flushSync` is what makes the following line work: it
-   * forces that re-render to commit now, so the node exists to scroll to.
-   */
-  useImperativeHandle(
-    ref,
-    () => ({
-      focusPattern(id: PatternId) {
-        flushSync(() => {
-          setActiveGroup("all");
-          setTerm("");
-          setOpenIds((prev) => new Set(prev).add(id));
-        });
-        // Instant, not smooth: this is a jump to another tab, and an animated
-      // scroll is silently dropped whenever the browser has smooth
-      // scrolling disabled (reduced-motion settings, some embedded views) —
-      // which would leave the user on a tab they did not ask for, looking at
-      // the wrong card.
-      cardRefs.current.get(id)?.scrollIntoView({ behavior: "auto", block: "center" });
-      },
-    }),
-    [],
-  );
 
   function toggleCard(id: PatternId) {
     setOpenIds((prev) => {
@@ -153,26 +114,19 @@ export function PatternsBoard({ patternGroups, leetcodeGroups, ref }: PatternsBo
                 <h2 className="font-serif text-[17px] tracking-tight text-cream">
                   {pick(group.g, group.gru)}
                 </h2>
-                <div className="mt-3 grid gap-[22px] md:grid-cols-2">
+                <div className="mt-3 grid items-start gap-[22px] md:grid-cols-2">
                   {group.items.map((pattern, i) => (
-                    <div
+                    <PinnedPatternCard
                       key={pattern.id}
-                      ref={(node) => {
-                        if (node) cardRefs.current.set(pattern.id, node);
-                        else cardRefs.current.delete(pattern.id);
-                      }}
-                    >
-                      <PinnedPatternCard
-                        pattern={pattern}
-                        index={i}
-                        pinColor={pinColorForIndex(patternGroups.indexOf(group))}
-                        isOpen={openIds.has(pattern.id)}
-                        learned={Boolean(learned[pattern.id])}
-                        usage={usage[pattern.id] ?? []}
-                        onToggleOpen={() => toggleCard(pattern.id)}
-                        onToggleLearned={() => toggleLearned(pattern.id)}
-                      />
-                    </div>
+                      pattern={pattern}
+                      index={i}
+                      pinColor={pinColorForIndex(patternGroups.indexOf(group))}
+                      isOpen={openIds.has(pattern.id)}
+                      learned={Boolean(learned[pattern.id])}
+                      usage={usage[pattern.id] ?? []}
+                      onToggleOpen={() => toggleCard(pattern.id)}
+                      onToggleLearned={() => toggleLearned(pattern.id)}
+                    />
                   ))}
                 </div>
               </div>

@@ -18,11 +18,9 @@ type FilterKey = "all" | "easy" | "med" | "hard" | "core";
 interface LeetCodeBoardProps {
   leetcodeGroups: LeetCodeGroup[];
   patternsById: Record<PatternId, AlgoPattern>;
-  /** Hands a pattern reference up to `BoardShell`, which switches tabs. */
-  onOpenPattern: (id: PatternId) => void;
 }
 
-export function LeetCodeBoard({ leetcodeGroups, patternsById, onOpenPattern }: LeetCodeBoardProps) {
+export function LeetCodeBoard({ leetcodeGroups, patternsById }: LeetCodeBoardProps) {
   const { t, pick } = useLanguage();
   const [term, setTerm] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
@@ -136,7 +134,7 @@ export function LeetCodeBoard({ leetcodeGroups, patternsById, onOpenPattern }: L
                 <h2 className="font-serif text-[17px] tracking-tight text-cream">
                   {pick(group.g, group.gru)}
                 </h2>
-                <div className="mt-3 grid gap-[22px] md:grid-cols-2">
+                <div className="mt-3 grid items-start gap-[22px] md:grid-cols-2">
                   {group.items.map((item, i) => (
                     <PinnedLeetCodeCard
                       key={item.s}
@@ -148,7 +146,6 @@ export function LeetCodeBoard({ leetcodeGroups, patternsById, onOpenPattern }: L
                       patternsById={patternsById}
                       onToggleDone={() => toggle(item.s)}
                       onToggleOpen={() => toggleCard(item.s)}
-                      onOpenPattern={onOpenPattern}
                     />
                   ))}
                 </div>

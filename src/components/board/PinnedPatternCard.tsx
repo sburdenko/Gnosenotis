@@ -5,7 +5,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import type { PinColor } from "@/lib/boardVisuals";
 import type { PatternUsage } from "@/lib/patternUsage";
 import { PinnedCardShell } from "./PinnedCardShell";
-import { Badge } from "./Badge";
+import { PatternDetails } from "./PatternDetails";
 
 interface PinnedPatternCardProps {
   pattern: AlgoPattern;
@@ -30,9 +30,6 @@ export function PinnedPatternCard({
   onToggleLearned,
 }: PinnedPatternCardProps) {
   const { t, pick } = useLanguage();
-
-  const when = pick(pattern.when, pattern.whenru);
-  const traps = pick(pattern.traps, pattern.trapsru);
 
   return (
     <PinnedCardShell
@@ -66,67 +63,9 @@ export function PinnedPatternCard({
 
       {isOpen && (
         <div className="mt-2.5 border-t border-black/10 pt-2.5">
-          <Section title={t.patterns.when}>
-            <ul className="ml-4 list-disc text-[14.5px] leading-snug text-ink-body">
-              {when.map((signal) => (
-                <li key={signal} className="mt-1">
-                  {signal}
-                </li>
-              ))}
-            </ul>
-          </Section>
-
-          <Section title={t.patterns.template}>
-            {/*
-              Plain text in a <pre>, not trusted HTML: React escapes it, so a
-              template that happens to contain `<` or `&` renders as code
-              rather than as markup. Do not "upgrade" this to
-              dangerouslySetInnerHTML for syntax highlighting.
-            */}
-            <pre className="code-block">{pattern.code}</pre>
-          </Section>
-
-          <Section title={t.patterns.traps}>
-            <ul className="ml-4 list-disc text-[14.5px] leading-snug text-ink-body">
-              {traps.map((trap) => (
-                <li key={trap} className="mt-1">
-                  {trap}
-                </li>
-              ))}
-            </ul>
-          </Section>
-
-          {usage.length > 0 && (
-            <Section title={t.patterns.practiseOn(usage.length)}>
-              <div className="flex flex-wrap gap-1.5">
-                {usage.map((problem) => (
-                  <a
-                    key={problem.s}
-                    href={`https://leetcode.com/problems/${problem.s}/`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1.5 rounded-sm border border-black/15 bg-kraft-dim/60 px-2 py-px font-mono text-[11px] text-link hover:border-link hover:bg-kraft-hover"
-                  >
-                    {problem.t}
-                    <Badge tone={problem.d}>{t.badges[problem.d === "med" ? "medium" : problem.d]}</Badge>
-                  </a>
-                ))}
-              </div>
-            </Section>
-          )}
+          <PatternDetails pattern={pattern} usage={usage} />
         </div>
       )}
     </PinnedCardShell>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="mt-3 first:mt-0">
-      <p className="mb-1.5 font-display text-[10.5px] font-semibold tracking-[.16em] text-ink-muted uppercase">
-        {title}
-      </p>
-      {children}
-    </div>
   );
 }

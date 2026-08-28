@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import { flushSync } from "react-dom";
+import { useState } from "react";
 import type {
   AlgoPattern,
   Question,
@@ -16,7 +15,7 @@ import { TabDrawers, type DrawerTab } from "./TabDrawers";
 import { QuestionsBoard } from "./QuestionsBoard";
 import { ResourcesBoard } from "./ResourcesBoard";
 import { LeetCodeBoard } from "./LeetCodeBoard";
-import { PatternsBoard, type PatternsBoardHandle } from "./PatternsBoard";
+import { PatternsBoard } from "./PatternsBoard";
 
 type Tab = "questions" | "resources" | "leetcode" | "patterns";
 
@@ -57,19 +56,6 @@ export function BoardShell({
   const { t } = useLanguage();
   const [tab, setTab] = useState<Tab>("questions");
 
-  // A pattern chip on a LeetCode card has to cross a tab boundary: this
-  // component owns which tab is showing, and the patterns board owns which
-  // card is unfolded, so the click switches the tab here and then hands the
-  // rest to that board. `flushSync` commits the tab switch first — the
-  // patterns board is `hidden` until then, and you cannot scroll to a card
-  // inside a `display: none` subtree.
-  const patternsBoard = useRef<PatternsBoardHandle>(null);
-
-  const openPattern = useCallback((id: PatternId) => {
-    flushSync(() => setTab("patterns"));
-    patternsBoard.current?.focusPattern(id);
-  }, []);
-
   const tabs: DrawerTab<Tab>[] = [
     {
       key: "questions",
@@ -105,14 +91,10 @@ export function BoardShell({
         <ResourcesBoard resourceGroups={resourceGroups} />
       </div>
       <div className={tab === "patterns" ? "" : "hidden"}>
-        <PatternsBoard ref={patternsBoard} patternGroups={patternGroups} leetcodeGroups={leetcodeGroups} />
+        <PatternsBoard patternGroups={patternGroups} leetcodeGroups={leetcodeGroups} />
       </div>
       <div className={tab === "leetcode" ? "" : "hidden"}>
-        <LeetCodeBoard
-          leetcodeGroups={leetcodeGroups}
-          patternsById={patternsById}
-          onOpenPattern={openPattern}
-        />
+        <LeetCodeBoard leetcodeGroups={leetcodeGroups} patternsById={patternsById} />
       </div>
     </div>
   );
