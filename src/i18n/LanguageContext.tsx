@@ -45,8 +45,12 @@ interface LanguageContextValue {
   lang: Lang;
   setLang: (lang: Lang) => void;
   t: Dictionary;
-  /** Picks the English or Russian variant of a bilingual content field, e.g. `pick(q.q, q.qru)`. */
-  pick: (en: string, ru: string) => string;
+  /**
+   * Picks the English or Russian variant of a bilingual content field, e.g.
+   * `pick(q.q, q.qru)`. Generic in the field type so it works for the
+   * string-array fields too (`pick(p.traps, p.trapsru)`) without a cast.
+   */
+  pick: <T>(en: T, ru: T) => T;
 }
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
@@ -68,7 +72,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }, [lang]);
 
   const setLang = useCallback((next: Lang) => writeLang(next), []);
-  const pick = useCallback((en: string, ru: string) => (lang === "en" ? en : ru), [lang]);
+  const pick = useCallback(<T,>(en: T, ru: T) => (lang === "en" ? en : ru), [lang]);
 
   return (
     <LanguageContext.Provider value={{ lang, setLang, t: dictionaries[lang], pick }}>

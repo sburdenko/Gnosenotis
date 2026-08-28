@@ -1,4 +1,4 @@
-import { questionsWithDeepDives, resourceGroups, leetcodeGroups } from "@/data";
+import { questionsWithDeepDives, resourceGroups, leetcodeGroups, patternGroups, patternsById } from "@/data";
 import { BoardShell } from "@/components/board/BoardShell";
 
 // Server Component: this module and its imports never ship to the browser
@@ -11,7 +11,13 @@ import { BoardShell } from "@/components/board/BoardShell";
 export default function Home() {
   return (
     <main className="min-h-screen bg-[#e8e3d7] p-4 md:p-10">
-      <BoardShell questions={questionsWithDeepDives} resourceGroups={resourceGroups} leetcodeGroups={leetcodeGroups} />
+      <BoardShell
+        questions={questionsWithDeepDives}
+        resourceGroups={resourceGroups}
+        leetcodeGroups={leetcodeGroups}
+        patternGroups={patternGroups}
+        patternsById={patternsById}
+      />
     </main>
   );
 }

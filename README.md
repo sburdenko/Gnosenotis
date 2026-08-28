@@ -2,8 +2,10 @@
 
 A senior/lead-level Unity interview prep site: 340 C#/rendering/gameplay
 questions with bilingual (EN/RU) answers, ~140 "deep dive" lessons, a curated
-reading list, and 58 LeetCode problems — with reviewed/read/solved progress
-saved to your browser.
+reading list, 31 algorithm patterns with C# templates, and 58 LeetCode
+problems — each with a naive-to-optimal solution ladder and links to the
+patterns it drills — with reviewed/read/solved/learned progress saved to your
+browser.
 
 This is a rewrite of a single-file vanilla-HTML/CSS/JS app (kept for
 reference in [`legacy/`](./legacy)) into **React + Next.js (App Router) +
@@ -24,19 +26,29 @@ content and interactions expressed idiomatically in that stack:
 
 ```
 src/
-  types/content.ts        Question / ResourceGroup / LeetCodeGroup shapes
-  data/                    Content extracted verbatim from legacy/, typed
-  hooks/useProgressSet.ts  localStorage-backed "done" set (reading/LeetCode progress)
-  lib/hostname.ts          Small URL helper
-  components/
-    InterviewApp.tsx       Tabs + root client state
-    questions/              Search, category filter, cards, deep-dive modal
-    resources/              Reading list
-    leetcode/               LeetCode list + difficulty filter
-    shared/                 ProgressBar, etc.
+  types/content.ts         Question / ResourceGroup / LeetCodeGroup / AlgoPattern shapes
+  data/
+    questions.ts, deepDives.ts, resources.ts
+    leetcode/              One file per difficulty; each problem lists its
+                           patterns (`pat`) and its solution ladder (`sol`)
+    patterns/              One file per pattern family; `index.ts` also
+                           asserts every declared PatternId was written
+  hooks/useProgressSet.ts  localStorage-backed "done" set (per board)
+  lib/
+    hostname.ts            Small URL helper
+    patternUsage.ts        Reverse index: pattern -> the problems that drill it
+  components/board/
+    BoardShell.tsx         Tabs + root client state
+    QuestionsBoard, ResourcesBoard, PatternsBoard, LeetCodeBoard
+    Pinned*Card.tsx        One card renderer per content type
   app/
     layout.tsx, page.tsx, globals.css
 ```
+
+The LeetCode and Patterns tabs are cross-linked: a problem card unfolds into
+its approaches and the patterns behind them, and clicking a pattern chip
+jumps to that pattern's card (template, pitfalls, and every problem that
+practises it — derived from the problem data, never listed twice).
 
 Every file has comments explaining the *why* behind non-obvious choices
 (Server vs. Client Components, why some HTML is rendered with

@@ -1,20 +1,31 @@
 "use client";
 
-import { useState } from "react";
-import type { Question, ResourceGroup, LeetCodeGroup } from "@/types/content";
+import { useCallback, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import type {
+  AlgoPattern,
+  Question,
+  ResourceGroup,
+  LeetCodeGroup,
+  PatternGroup,
+  PatternId,
+} from "@/types/content";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { BrandHeader } from "./BrandHeader";
 import { TabDrawers, type DrawerTab } from "./TabDrawers";
 import { QuestionsBoard } from "./QuestionsBoard";
 import { ResourcesBoard } from "./ResourcesBoard";
 import { LeetCodeBoard } from "./LeetCodeBoard";
+import { PatternsBoard, type PatternsBoardHandle } from "./PatternsBoard";
 
-type Tab = "questions" | "resources" | "leetcode";
+type Tab = "questions" | "resources" | "leetcode" | "patterns";
 
 interface BoardShellProps {
   questions: Question[];
   resourceGroups: ResourceGroup[];
   leetcodeGroups: LeetCodeGroup[];
+  patternGroups: PatternGroup[];
+  patternsById: Record<PatternId, AlgoPattern>;
 }
 
 /**
@@ -31,18 +42,42 @@ interface BoardShellProps {
  * keeps the amount of JavaScript sent to the browser as small as the
  * interactivity actually requires.
  *
- * All three tab boards stay mounted at once (toggled with Tailwind's
+ * All four tab boards stay mounted at once (toggled with Tailwind's
  * `hidden` utility) instead of only rendering the active one, so each tab's
  * own state — search text, expanded cards, filters, scroll position within
  * it — survives switching away and back.
  */
-export function BoardShell({ questions, resourceGroups, leetcodeGroups }: BoardShellProps) {
+export function BoardShell({
+  questions,
+  resourceGroups,
+  leetcodeGroups,
+  patternGroups,
+  patternsById,
+}: BoardShellProps) {
   const { t } = useLanguage();
   const [tab, setTab] = useState<Tab>("questions");
 
+  // A pattern chip on a LeetCode card has to cross a tab boundary: this
+  // component owns which tab is showing, and the patterns board owns which
+  // card is unfolded, so the click switches the tab here and then hands the
+  // rest to that board. `flushSync` commits the tab switch first — the
+  // patterns board is `hidden` until then, and you cannot scroll to a card
+  // inside a `display: none` subtree.
+  const patternsBoard = useRef<PatternsBoardHandle>(null);
+
+  const openPattern = useCallback((id: PatternId) => {
+    flushSync(() => setTab("patterns"));
+    patternsBoard.current?.focusPattern(id);
+  }, []);
+
   const tabs: DrawerTab<Tab>[] = [
-    { key: "questions", label: t.tabs.questions, sub: t.tabSub.questions(questions.length) },
+    {
+      key: "questions",
+      label: t.tabs.questions,
+      sub: t.tabSub.questions(questions.length),
+    },
     { key: "resources", label: t.tabs.resources, sub: t.tabSub.resources },
+    { key: "patterns", label: t.tabs.patterns, sub: t.tabSub.patterns },
     { key: "leetcode", label: t.tabs.leetcode, sub: t.tabSub.leetcode },
   ];
 
@@ -69,8 +104,15 @@ export function BoardShell({ questions, resourceGroups, leetcodeGroups }: BoardS
       <div className={tab === "resources" ? "" : "hidden"}>
         <ResourcesBoard resourceGroups={resourceGroups} />
       </div>
+      <div className={tab === "patterns" ? "" : "hidden"}>
+        <PatternsBoard ref={patternsBoard} patternGroups={patternGroups} leetcodeGroups={leetcodeGroups} />
+      </div>
       <div className={tab === "leetcode" ? "" : "hidden"}>
-        <LeetCodeBoard leetcodeGroups={leetcodeGroups} />
+        <LeetCodeBoard
+          leetcodeGroups={leetcodeGroups}
+          patternsById={patternsById}
+          onOpenPattern={openPattern}
+        />
       </div>
     </div>
   );

@@ -74,7 +74,11 @@ body {
 
 .tex-paper-ruled {
   background-color: #fffdf7;
-  background-image: repeating-linear-gradient(to bottom, transparent 0 25px, rgba(70, 110, 150, 0.16) 25px 26px);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 25px,
+    rgba(70, 110, 150, 0.16) 25px 26px
+  );
 }
 
 .tex-wood {
@@ -239,4 +243,25 @@ mark {
 .legacy-html .links li span {
   color: var(--color-ink-muted);
   font-size: 13px;
+}
+
+/*
+ * Code templates on the pattern cards. Same dark "pasted printout" treatment
+ * as `.legacy-html pre`, but a standalone class: those blocks come from
+ * trusted HTML strings in src/data, while this one wraps plain text that
+ * React escapes — see the comment in PinnedPatternCard.tsx.
+ */
+.code-block {
+  margin: 0;
+  padding: 12px 14px;
+  overflow-x: auto;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  border-radius: 3px;
+  background: var(--color-ink);
+  color: #e9dcc4;
+  font-family: var(--font-mono);
+  font-size: 12.3px;
+  line-height: 1.55;
+  white-space: pre;
+  tab-size: 4;
 }
