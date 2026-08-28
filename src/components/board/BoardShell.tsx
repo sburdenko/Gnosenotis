@@ -41,7 +41,7 @@ export function BoardShell({ questions, resourceGroups, leetcodeGroups }: BoardS
   const [tab, setTab] = useState<Tab>("questions");
 
   const tabs: DrawerTab<Tab>[] = [
-    { key: "questions", label: t.tabs.questions, sub: t.tabSub.questions },
+    { key: "questions", label: t.tabs.questions, sub: t.tabSub.questions(questions.length) },
     { key: "resources", label: t.tabs.resources, sub: t.tabSub.resources },
     { key: "leetcode", label: t.tabs.leetcode, sub: t.tabSub.leetcode },
   ];
@@ -49,7 +49,7 @@ export function BoardShell({ questions, resourceGroups, leetcodeGroups }: BoardS
   return (
     <div className="tex-cork mx-auto max-w-[1060px] rounded border border-black/25 pb-[34px] shadow-board">
       <p className="sr-only" aria-live="polite">
-        {t.siteSubtitle}
+        {t.siteSubtitle(questions.length)}
       </p>
 
       <BrandHeader />

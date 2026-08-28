@@ -1,9 +1,9 @@
-# Unity Interview — 310 Questions (Next.js learning rewrite)
+# Unity Interview — 340 Questions (Next.js learning rewrite)
 
-A senior/lead-level Unity interview prep site: 310 C#/rendering/gameplay
-questions with bilingual (EN/RU) answers, ~110 "deep dive" lessons, a curated
-reading list, and 58 LeetCode problems — with read/solved progress saved to
-your browser.
+A senior/lead-level Unity interview prep site: 340 C#/rendering/gameplay
+questions with bilingual (EN/RU) answers, ~140 "deep dive" lessons, a curated
+reading list, and 58 LeetCode problems — with reviewed/read/solved progress
+saved to your browser.
 
 This is a rewrite of a single-file vanilla-HTML/CSS/JS app (kept for
 reference in [`legacy/`](./legacy)) into **React + Next.js (App Router) +

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Unity Senior Interview — 310 Questions</title>
+<title>Unity Senior Interview — 340 Questions</title>
 <style>
   :root{
     --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --line:#252d3a;
@@ -185,13 +185,13 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>Unity Interview — 310 Questions</h1>
-    <p>Senior / Lead level · 100 C# · 50 rendering · 20+ in every other category<br>
+    <h1>Unity Interview — 340 Questions</h1>
+    <p>Senior / Lead level · 100 C# · 50 Core · 50 Rendering · 20+ everywhere else<br>
     <span style="font-size:11.5px">Уровень Senior / Lead · геймплей и C# · графика и производительность. Клик по вопросу — раскрыть ответ.</span></p>
   </header>
 
   <div class="tabs">
-    <button class="tab on" data-view="questions">Questions <span class="sub">310 вопросов</span></button>
+    <button class="tab on" data-view="questions">Questions <span class="sub">340 вопросов</span></button>
     <button class="tab" data-view="resources">Reading list <span class="sub">где читать</span></button>
     <button class="tab" data-view="leetcode">LeetCode <span class="sub">задачи по сложности</span></button>
   </div>
@@ -203,6 +203,7 @@
         <button id="expandAll">Expand all</button>
         <button id="collapseAll">Collapse all</button>
       </div>
+      <div class="row cats" id="prios"></div>
       <div class="row cats" id="cats"></div>
     </div>
 
@@ -2096,6 +2097,997 @@ q:`As tech lead: how do you decide what internal tools to build, and how do you 
 qru:`Как техлид: как решать, какие внутренние инструменты строить, и как поддерживать их живыми?`,
 a:`Build decisions by expected value: (people affected) × (frequency) × (time saved or errors prevented), minus build+maintenance cost — a validator saving 10 people 5 minutes daily beats a mildly clever editor window used twice; and *error-prevention* tools (import enforcement, reference validation, pre-merge checks) usually beat *speed* tools because content breakage costs QA cycles, not minutes. Sequencing principle: tools that defend correctness first (validation in CI), iteration-speed tools second (enter-play time, debug menus, deep links), convenience UX last. Keeping them alive — where most teams fail: tools are products with users, so they need an owner (a named person or a rotating tools duty, not "whoever wrote it"), telemetry of their own (usage counts justify or kill them — a tool nobody used in a quarter gets deleted, deletion is maintenance), docs at point-of-use (the tool explains itself; a Confluence page nobody finds is not docs), a feedback channel designers actually use, and versioned resilience (tools break on Unity upgrades — the upgrade-spike branch from earlier includes the tools test pass). Budget honesty: mature teams spend a real fraction of engineering on tools/pipeline (commonly cited 10-20% in content-heavy production) — making that explicit in planning beats stealing it from feature estimates and pretending. The lead-level closing: your leverage is not writing the tools yourself, it is creating the review norms, EV rubric, and protected time that let the team continuously invest without asking permission per screwdriver.`,
 aru:`Решения о постройке — по матожиданию ценности: (число затронутых людей) × (частота) × (сэкономленное время или предотвращённые ошибки) минус цена постройки+поддержки — валидатор, экономящий 10 людям по 5 минут в день, бьёт умеренно остроумное редакторное окно, использованное дважды; и инструменты *предотвращения ошибок* (принуждение импорта, валидация ссылок, пре-мерж проверки) обычно бьют инструменты *скорости*, потому что поломка контента стоит циклов QA, а не минут. Принцип последовательности: сначала инструменты, защищающие корректность (валидация в CI), затем скорость итераций (время входа в Play, debug-меню, диплинки), удобство UX — последним. Поддержание жизни — где падает большинство команд: инструменты это продукты с пользователями, им нужен владелец (именованный человек или ротация tools duty, а не «кто написал»), собственная телеметрия (счётчики использования оправдывают или убивают — инструмент, не использованный квартал, удаляется; удаление это тоже поддержка), документация в точке использования (инструмент объясняет себя сам; страница в Confluence, которую никто не находит, — не документация), канал обратной связи, которым дизайнеры реально пользуются, и версионная устойчивость (инструменты ломаются на апгрейдах Unity — ветка-разведка апгрейда из ранних вопросов включает прогон тестов инструментов). Бюджетная честность: зрелые команды тратят реальную долю инженерии на инструменты/пайплайн (в контенто-тяжёлом продакшене обычно называют 10-20%) — явное признание этого в планировании лучше воровства из оценок фич с притворством. Финал уровня лида: ваш рычаг — не писать инструменты самому, а создать нормы ревью, рубрику EV и защищённое время, позволяющие команде инвестировать непрерывно, не спрашивая разрешения на каждую отвёртку.`},
+
+{n:311,c:"Core",p:"core",
+q:`GameObject vs Component: how does Unity's composition model actually work?`,
+qru:`GameObject против Component: как реально устроена композиционная модель Unity?`,
+a:`A GameObject is a container with a name, tag, layer, active flag and a mandatory Transform — it has no behaviour of its own. All capability comes from attached Components, which are C# wrappers around native objects owned by their GameObject. This is composition over inheritance in engine form: an enemy is not a subclass of Entity, it is a GameObject carrying Health + Movement + Weapon. Implications seniors state: adding/removing components at runtime is possible but allocates and rebuilds internal lists (prefer enabling/disabling); a component's lifetime is bound to its GameObject; and <code>RequireComponent</code> enforces dependencies at authoring time. The model's cost is indirection — GetComponent lookups and scattered memory — which is exactly what ECS trades away.`,
+aru:`GameObject — контейнер с именем, тегом, слоем, флагом активности и обязательным Transform; собственного поведения у него нет. Всё умение приходит от прикреплённых Component-ов — C#-обёрток над нативными объектами, которыми владеет GameObject. Это композиция вместо наследования в движковой форме: враг не наследник Entity, а GameObject с Health + Movement + Weapon. Что говорит сеньор: добавление/удаление компонентов в рантайме возможно, но аллоцирует и перестраивает внутренние списки (лучше включать/выключать); время жизни компонента привязано к объекту; RequireComponent фиксирует зависимости на этапе авторинга. Цена модели — косвенность: поиски GetComponent и разбросанная память, ровно то, что меняет на скорость ECS.`,
+d:`
+<h3>Простыми словами</h3>
+<p>GameObject — это пустая коробка с ярлыком. Всё, что объект умеет, определяется тем, какие компоненты в эту коробку положили. Хочешь, чтобы враг летал — добавь компонент полёта. Хочешь, чтобы взрывался — добавь взрыв. Не нужно плодить классы FlyingExplodingEnemy: собираешь способности как конструктор.</p>
+<h3>Что важно понимать глубже</h3>
+<pre><span class="cm">// GameObject сам по себе ничего не делает:</span>
+var go = new GameObject("Enemy");     <span class="cm">// есть только Transform</span>
+go.AddComponent&lt;Health&gt;();            <span class="cm">// теперь умеет умирать</span>
+go.AddComponent&lt;NavMeshAgent&gt;();      <span class="cm">// теперь умеет ходить</span>
+
+<span class="cm">// Зависимости фиксируются атрибутом, а не документацией:</span>
+[RequireComponent(typeof(Rigidbody))]
+public class Movement : MonoBehaviour { }
+<span class="cm">// Unity добавит Rigidbody сама и не даст его удалить</span>
+
+<span class="cm">// AddComponent/Destroy в рантайме — дорого:</span>
+<span class="cm">// перестройка списков компонентов + аллокация.</span>
+<span class="cm">// Лучше: компонент уже висит, а мы дёргаем enabled</span></pre>
+<h3>Ловушка «компонент — это класс»</h3>
+<p>Компонент — это C#-обёртка над нативным объектом. Отсюда всё странное поведение: <code>== null</code> после Destroy (вопрос №10), невозможность использовать <code>new</code> для MonoBehaviour, и то, что конструктор компонента вызывается Unity в непредсказуемый момент (поэтому инициализация — в Awake, а не в конструкторе).</p>
+<h3>Что сказать на собеседовании</h3>
+<p>«GameObject — контейнер с Transform, поведение задаётся набором компонентов: композиция вместо наследования на уровне движка. Зависимости объявляю RequireComponent, в рантайме предпочитаю enabled вместо Add/Destroy — они перестраивают внутренние списки. Помню, что компонент — обёртка над нативным объектом: отсюда инициализация в Awake, а не в конструкторе».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/Manual/GameObjects.html" target="_blank">Unity: GameObjects</a> <span>— модель объектов и компонентов</span></li>
+<li><a href="https://gameprogrammingpatterns.com/component.html" target="_blank">Game Programming Patterns: Component</a> <span>— почему композиция победила наследование</span></li>
+</ul></div>`},
+
+{n:312,c:"Core",p:"core",
+q:`Tags, layers, and sorting layers: what is each for, and where do teams misuse them?`,
+qru:`Теги, слои и sorting layers: для чего каждый и где команды их путают?`,
+a:`Tags are a single string label per GameObject — cheap identity checks (<code>CompareTag</code>, which avoids the string allocation that <code>tag ==</code> historically caused). Layers are a 32-slot bitmask used by systems: physics collision matrix, raycast masks, camera culling masks, light culling. Sorting layers/order are 2D and UI render ordering only. Misuse patterns: using tags for behaviour dispatch (a string switch instead of an interface — brittle, unsearchable), burning scarce layers on gameplay categories that should be components, and forgetting that layers are a *shared global resource* — with only 32 slots, a project that spends them casually cannot express its physics matrix later. Senior guidance: layers for what physics/rendering must filter, components/interfaces for what code must know.`,
+aru:`Теги — одна строковая метка на объект: дешёвая проверка идентичности через CompareTag (он избегает аллокации, которую исторически давало сравнение tag ==). Слои — битовая маска на 32 слота, которую используют системы: матрица коллизий, маски рейкастов, culling mask камеры, куллинг света. Sorting layer/order — только порядок отрисовки 2D и UI. Ошибки: теги как способ выбрать поведение (строковый switch вместо интерфейса — хрупко и не ищется), трата дефицитных слоёв на геймплейные категории, которые должны быть компонентами, и забвение того, что слои — общий глобальный ресурс: слотов всего 32, и проект, разбрасывающийся ими, потом не сможет выразить свою матрицу физики. Правило: слои — для фильтрации физикой и рендером, компоненты и интерфейсы — для того, что должен знать код.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Тег — приклеенная бумажка «Player». Слой — принадлежность к группе, которую понимают ФИЗИКА и КАМЕРЫ («по этой группе не стрелять, эту группу не рисовать»). Sorting layer — только про то, кто нарисован поверх кого в 2D и UI. Три разные вещи, которые постоянно путают.</p>
+<h3>Где что применять</h3>
+<pre><span class="cm">// Тег — быстрая проверка «это кто?»</span>
+if (other.CompareTag("Player"))  <span class="cm">// ✔ без аллокации</span>
+if (other.tag == "Player")       <span class="cm">// ✘ исторически аллоцировал строку</span>
+
+<span class="cm">// Слой — фильтрация системами:</span>
+Physics.Raycast(o, d, out hit, dist, LayerMask.GetMask("Enemy"));
+camera.cullingMask = ~(1 &lt;&lt; LayerMask.NameToLayer("Debug"));
+<span class="cm">// Слоёв всего 32, часть занята Unity → это дефицитный ресурс!</span>
+
+<span class="cm">// А поведение — через компоненты и интерфейсы:</span>
+if (other.TryGetComponent&lt;IDamageable&gt;(out var d)) d.Hit(10);
+<span class="cm">// ✘ НЕ так: if (tag == "Enemy") ... else if (tag == "Boss")</span></pre>
+<h3>Планирование слоёв</h3>
+<p>Слои проектируются заранее — как схема БД. Список типа Player, PlayerProjectile, Enemy, EnemyProjectile, Environment, Sensor, Ragdoll, UI покрывает большинство игр и оставляет запас. Если слои разошлись на «Trees», «Barrels», «Doors» — через полгода не хватит на действительно нужное, а переназначение слоёв на сотнях префабов — болезненный рефакторинг.</p>
+<h3>Что сказать на собеседовании</h3>
+<p>«Тег — метка идентичности, проверяю через CompareTag; слой — битовая маска для физики, рейкастов и culling mask камер, их всего 32 и это дефицит, планирую заранее; sorting layer — только порядок 2D/UI. Поведение никогда не выбираю по тегу — для этого интерфейсы и компоненты: строковый switch не рефакторится и не ищется».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/Manual/Layers.html" target="_blank">Unity: Layers</a> <span>— слои и маски</span></li>
+<li><a href="https://docs.unity3d.com/Manual/Tags.html" target="_blank">Unity: Tags</a> <span>— теги и CompareTag</span></li>
+</ul></div>`},
+
+{n:313,c:"Core",p:"mid",
+q:`SendMessage, BroadcastMessage, and why modern code avoids them.`,
+qru:`SendMessage, BroadcastMessage и почему современный код их избегает.`,
+a:`These call a method by *name string* on all components of an object (or its hierarchy), using reflection-like lookup. Cost: string-based dispatch, hierarchy traversal for Broadcast, allocations, and no compile-time checking — renaming the target method silently breaks the call. They also swallow the "no receiver" case by default. Legitimate historical uses (editor scripting, decoupled prototype hooks) are all better served today by C# events, interfaces (<code>GetComponents&lt;IHitReceiver&gt;</code> + loop), ScriptableObject channels, or a message bus. Unity itself uses the mechanism internally for lifecycle callbacks, which is why <code>OnValidate</code>-time restrictions mention SendMessage. Interview position: know them, be able to explain their cost, and treat their presence in a codebase as a refactoring target.`,
+aru:`Эти методы вызывают метод по СТРОКОВОМУ имени на всех компонентах объекта (или иерархии) через поиск в духе рефлексии. Цена: диспетчеризация по строке, обход иерархии у Broadcast, аллокации и отсутствие проверки компилятором — переименование целевого метода молча ломает вызов. По умолчанию отсутствие получателя тоже проглатывается. Исторические легитимные применения (редакторный скриптинг, развязанные хуки в прототипе) сегодня лучше закрываются C#-событиями, интерфейсами (GetComponents<IHitReceiver> и цикл), SO-каналами или шиной сообщений. Сама Unity использует этот механизм внутри для коллбэков жизненного цикла — отсюда упоминание SendMessage в ограничениях OnValidate. Позиция на собесе: знать, уметь объяснить цену и считать их наличие в коде поводом для рефакторинга.`,
+d:`
+<h3>Простыми словами</h3>
+<p>SendMessage — это «крикнуть в толпу имя метода и надеяться, что кто-то отзовётся». Работает, но: имя — строка (компилятор не проверит), поиск — по всем компонентам, а если никто не отозвался — тишина. В 2010-м это было удобно, сегодня есть всё то же самое, но типобезопасно и быстрее.</p>
+<h3>Чем заменять</h3>
+<pre><span class="cm">// Было:</span>
+target.SendMessage("TakeDamage", 10);
+<span class="cm">// строка! переименовал TakeDamage → сломалось молча</span>
+
+<span class="cm">// Стало (интерфейс):</span>
+if (target.TryGetComponent&lt;IDamageable&gt;(out var d)) d.TakeDamage(10);
+
+<span class="cm">// Нужно ВСЕМ компонентам объекта? Тоже без строк:</span>
+foreach (var r in target.GetComponents&lt;IDamageable&gt;()) r.TakeDamage(10);
+
+<span class="cm">// Развязка между системами? События или SO-каналы (в.№19)</span></pre>
+<h3>Что сказать на собеседовании</h3>
+<p>«SendMessage/BroadcastMessage — диспетчеризация по строке с обходом компонентов и иерархии: нет проверки компилятором, есть цена поиска и аллокаций, а промах получателя молчит. Заменяю интерфейсами через TryGetComponent/GetComponents или событиями. В легаси-коде их наличие — маркер для рефакторинга: они ломаются от безобидного переименования».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/ScriptReference/GameObject.SendMessage.html" target="_blank">GameObject.SendMessage</a> <span>— API и семантика</span></li>
+</ul></div>`},
+
+{n:314,c:"Core",p:"core",
+q:`Coroutine lifecycle in depth: StopCoroutine, StopAllCoroutines, and ownership.`,
+qru:`Жизненный цикл корутин глубже: StopCoroutine, StopAllCoroutines и владение.`,
+a:`Coroutines belong to the MonoBehaviour that started them: disabling the component stops them permanently (they do not resume on re-enable), destroying the object kills them, and <code>StopAllCoroutines</code> affects only that behaviour's set. Stopping a specific one requires the same reference used to start it — the <code>Coroutine</code> handle or the exact IEnumerator instance; passing a *new* call to <code>StopCoroutine(MyRoutine())</code> stops nothing (a classic bug) and the string overload is slow reflection. Also key: a stopped coroutine's <code>finally</code>/using blocks do not run unless the iterator is disposed, so cleanup written after a yield may never execute — the reason state cleanup belongs in OnDisable rather than at the end of a routine.`,
+aru:`Корутины принадлежат MonoBehaviour, который их запустил: отключение компонента останавливает их навсегда (при повторном включении они не продолжатся), уничтожение объекта убивает, а StopAllCoroutines касается только набора этого behaviour. Чтобы остановить конкретную, нужна та же ссылка, что использовалась при запуске — хэндл Coroutine или тот же экземпляр IEnumerator; вызов StopCoroutine(MyRoutine()) с новым вызовом не останавливает ничего (классический баг), а строковая перегрузка — медленная рефлексия. Ещё важно: у остановленной корутины блоки finally/using не выполняются, если итератор не задиспозен, поэтому очистка, написанная после yield, может не выполниться никогда — причина держать сброс состояния в OnDisable, а не в конце корутины.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Корутина — не независимый поток, а «подписка» на MonoBehaviour. Выключил компонент — корутина мертва навсегда, даже если объект снова включить. И, что коварнее всего, код очистки в конце корутины при этом НЕ выполнится: если ты там снимал бафф или выключал хитбокс — он останется включённым.</p>
+<h3>Правила владения</h3>
+<pre><span class="cm">// Остановить конкретную — только по ТОЙ ЖЕ ссылке:</span>
+Coroutine _fade;
+_fade = StartCoroutine(Fade());
+StopCoroutine(_fade);            <span class="cm">// ✔ работает</span>
+StopCoroutine(Fade());           <span class="cm">// ✘ новый итератор — не остановит НИЧЕГО</span>
+StopCoroutine("Fade");           <span class="cm">// ✘ работает, но это рефлексия по строке</span>
+
+<span class="cm">// Очистка НЕ в корутине, а в OnDisable:</span>
+void OnDisable() {
+    _isInvulnerable = false;     <span class="cm">// сброс гарантирован</span>
+    hitbox.enabled = false;
+}
+<span class="cm">// потому что корутина могла умереть на любом yield</span>
+
+<span class="cm">// Кэшируй yield-инструкции в циклах:</span>
+static readonly WaitForSeconds Wait = new(0.5f);
+while (true) { ...; yield return Wait; }  <span class="cm">// без аллокаций</span></pre>
+<h3>Что сказать на собеседовании</h3>
+<p>«Корутина живёт на MonoBehaviour: SetActive(false) убивает её навсегда, и finally после yield может не выполниться — поэтому сброс состояния всегда в OnDisable, а не в хвосте корутины. Останавливаю по сохранённому хэндлу; StopCoroutine с новым вызовом метода — классическая ошибка. WaitForSeconds кэширую. Для сложных сценариев — UniTask с токенами отмены».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/ScriptReference/MonoBehaviour.StopCoroutine.html" target="_blank">StopCoroutine</a> <span>— перегрузки и их семантика</span></li>
+<li><a href="https://docs.unity3d.com/Manual/Coroutines.html" target="_blank">Unity: Coroutines</a> <span>— жизненный цикл</span></li>
+</ul></div>`},
+
+{n:315,c:"Core",p:"mid",
+q:`Object pooling for scenes: additive loading vs pooling entire sub-scenes.`,
+qru:`Пулинг на уровне сцен: аддитивная загрузка против пулинга целых подсцен.`,
+a:`For repeated content (arena rooms, dungeon segments, race sectors) there are two strategies. Additive load/unload per segment: clean isolation, memory returned, but each transition pays scene load, Awake storms, and asset (re)loading — plus <code>UnloadUnusedAssets</code> cost. Scene pooling: load segment variants once, then move them in/out of an active pool by repositioning and toggling roots — near-zero transition cost at the price of permanent memory and the discipline of resetting all state (physics velocities, particle systems, AI, audio). Hybrid used in production: preload the next segment additively while the player traverses the current one (streaming), and pool only the small, high-churn pieces. The decision is the same memory-vs-hitch trade as object pooling, one level up.`,
+aru:`Для повторяющегося контента (комнаты арены, сегменты подземелья, секторы трассы) есть две стратегии. Аддитивная загрузка/выгрузка сегмента: чистая изоляция и возврат памяти, но каждый переход платит за загрузку сцены, шторм Awake и (пере)загрузку ассетов плюс цену UnloadUnusedAssets. Пулинг сцен: варианты сегментов загружаются один раз, а дальше перемещаются и включаются/выключаются — почти нулевая цена перехода ценой постоянной памяти и дисциплины сброса всего состояния (скорости физики, партиклы, ИИ, аудио). Гибрид из продакшена: следующий сегмент подгружается аддитивно, пока игрок проходит текущий (стриминг), а пулятся только мелкие часто повторяющиеся куски. Решение — тот же компромисс «память против фриза», что и в пулинге объектов, только уровнем выше.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Тот же вопрос, что с пулом пуль, только про целые куски уровня. Можно каждый раз честно грузить и выгружать комнату (память возвращается, но переход тормозит), а можно держать десяток комнат в памяти и просто переставлять их перед игроком (переход мгновенный, память занята постоянно).</p>
+<h3>Как это делают в продакшене</h3>
+<pre>Раннер/бесконечный уровень: пул сегментов —
+  3-5 экземпляров крутятся по кругу, впереди
+  переставляются, позади «съедаются». Ноль загрузок.
+
+Линейный уровень: стриминг — грузим следующий сегмент
+  аддитивно, пока игрок в текущем; выгружаем позади.
+  Триггеры-загрузчики + бюджет на кадр.
+
+Хаб/арены: загрузка на экране перехода (простое честное
+  решение — не усложняйте, если фриз спрятан).
+
+Дисциплина пула сцен = дисциплина пула объектов:
+  ResetState для ВСЕГО — физика, партиклы, ИИ, таймеры,
+  подписки. Плюс детерминированная расстановка контента
+  (сегмент не должен «помнить» прошлый проход).</pre>
+<h3>Что сказать на собеседовании</h3>
+<p>«Тот же компромисс память/фриз уровнем выше: пул сегментов для повторяющегося контента с полным сбросом состояния, аддитивный стриминг с предзагрузкой для линейных уровней, честная загрузка за экраном для хабов. Ключ — не техника, а бюджет: сколько миллисекунд может занять переход и сколько памяти мы готовы держать резидентной».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/Manual/MultiSceneEditing.html" target="_blank">Multi-scene editing</a> <span>— аддитивная работа со сценами</span></li>
+<li><a href="https://docs.unity3d.com/Packages/com.unity.addressables@2.2/manual/LoadingScenes.html" target="_blank">Addressables: loading scenes</a> <span>— стриминг сцен через Addressables</span></li>
+</ul></div>`},
+
+{n:316,c:"Core",p:"core",
+q:`How would you architect a game state machine (menu → loading → gameplay → pause)?`,
+qru:`Как спроектировать стейт-машину игры (меню → загрузка → геймплей → пауза)?`,
+a:`Model the *application* as an explicit state machine, separate from gameplay logic: states are objects with Enter/Exit/Update, transitions are declared centrally, and each state owns its scene set, input map, UI screen, and time scale. Enter/Exit do the heavy lifting — loading and unloading scenes, switching input action maps, subscribing/unsubscribing systems — which makes "who is responsible for turning music down when paused" answerable. Key design points: transitions must be async-aware (loading is not instantaneous — model Loading as a real state, not a side effect), a stack variant handles overlays (pause on top of gameplay, settings on top of pause) while a flat machine handles mutually exclusive modes, and the machine must be testable headlessly. Anti-pattern to name: booleans scattered across managers (<code>isPaused && !isLoading && inGame</code>) — the combinatorial bug farm this replaces.`,
+aru:`Моделируем *приложение* как явную стейт-машину, отдельную от геймплейной логики: состояния — объекты с Enter/Exit/Update, переходы объявлены централизованно, каждое состояние владеет своим набором сцен, картой ввода, UI-экраном и timeScale. Основную работу делают Enter/Exit — загрузка и выгрузка сцен, переключение action map, подписки и отписки систем: тогда вопрос «кто отвечает за приглушение музыки на паузе» имеет ответ. Важное: переходы должны учитывать асинхронность (загрузка не мгновенна — Loading это настоящее состояние, а не побочный эффект), стековый вариант обслуживает оверлеи (пауза поверх геймплея, настройки поверх паузы), плоский — взаимоисключающие режимы, и машина должна тестироваться без графики. Антипаттерн: булевы флаги, размазанные по менеджерам (isPaused && !isLoading && inGame) — комбинаторная ферма багов, которую это заменяет.`,
+d:`
+<h3>Простыми словами</h3>
+<p>В игре всегда есть «режим»: меню, загрузка, игра, пауза, катсцена, экран смерти. Без явной машины состояний это превращается в набор булевых флагов, которые проверяются в двадцати местах и однажды дают комбинацию, о которой никто не думал (пауза во время загрузки во время катсцены). Явная машина делает невозможные комбинации невозможными.</p>
+<h3>Скелет</h3>
+<pre>interface IGameState {
+    UniTask Enter(CancellationToken ct);   <span class="cm">// асинхронный!</span>
+    void Tick();
+    UniTask Exit();
+}
+
+class GameplayState : IGameState {
+    public async UniTask Enter(CancellationToken ct) {
+        await _scenes.LoadGameplay(ct);
+        _input.SwitchTo("Gameplay");    <span class="cm">// карта ввода</span>
+        _ui.Show(Screen.HUD);
+        Time.timeScale = 1;
+    }
+    public async UniTask Exit() { ... }   <span class="cm">// симметричная уборка</span>
+}
+
+<span class="cm">// Оверлеи — стеком:</span>
+_stack.Push(new PauseState());  <span class="cm">// геймплей под ним ЖИВ, но не тикает</span>
+_stack.Pop();                    <span class="cm">// вернулись ровно туда, где были</span></pre>
+<h3>Детали, отличающие сеньора</h3>
+<ul>
+<li><b>Loading — состояние, а не «пока грузим».</b> У него свой экран, свой прогресс, своя отмена.</li>
+<li><b>Симметрия Enter/Exit:</b> всё, на что подписались при входе, отписывается при выходе. Иначе утечки (вопрос №16).</li>
+<li><b>Отмена:</b> игрок нажал «Назад» во время загрузки — переход должен корректно отмениться, а не доехать и переключить экран поверх меню.</li>
+<li><b>Тестируемость:</b> машина в чистом C# без Unity API — прогоняется в EditMode-тестах последовательностями переходов.</li>
+</ul>
+<h3>Что сказать на собеседовании</h3>
+<p>«Приложение — явная стейт-машина с асинхронными Enter/Exit: состояние владеет своими сценами, картой ввода, UI и timeScale. Оверлеи — стеком, взаимоисключающие режимы — плоско. Loading моделирую как настоящее состояние с отменой. Симметрия подписок обязательна. Это заменяет набор булевых флагов, которые дают комбинаторные баги вроде паузы внутри загрузки».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://gameprogrammingpatterns.com/state.html" target="_blank">Game Programming Patterns: State</a> <span>— паттерн и его стековая версия</span></li>
+<li><a href="https://unity.com/resources/level-up-your-code-with-game-programming-patterns" target="_blank">Unity e-book: patterns</a> <span>— реализация State в Unity-контексте</span></li>
+</ul></div>`},
+
+{n:317,c:"Core",p:"mid",
+q:`Time management beyond deltaTime: timers, cooldowns, and scheduled events at scale.`,
+qru:`Работа со временем помимо deltaTime: таймеры, кулдауны и запланированные события на масштабе.`,
+a:`Naive approach — every ability holding a float counter decremented in its own Update — costs an Update call per entity and scatters logic. Scalable patterns: (1) timestamp comparison instead of countdown — store <code>_readyAt = Time.time + cooldown</code> and test <code>Time.time >= _readyAt</code>: no per-frame work at all, and the value survives pauses correctly if you choose the right clock; (2) a central scheduler — a priority queue (min-heap) of (dueTime, callback) processed once per frame, giving O(log n) insert and O(1) peek for thousands of scheduled events; (3) tick buckets for coarse periodic work (regeneration at 1Hz across 500 entities spread over 60 frames). Clock choice matters: <code>Time.time</code> (scaled, pauses), <code>unscaledTime</code> (menus), <code>realtimeSinceStartup</code> (wall clock), and server time for anything the player could cheat by changing the device clock.`,
+aru:`Наивный подход — у каждой способности свой float-счётчик, уменьшаемый в собственном Update — стоит вызова Update на сущность и размазывает логику. Масштабируемые паттерны: (1) сравнение с меткой времени вместо обратного отсчёта — храним _readyAt = Time.time + cooldown и проверяем Time.time >= _readyAt: покадровой работы нет вообще, а поведение при паузе определяется выбором часов; (2) центральный планировщик — приоритетная очередь (min-heap) пар (время, коллбэк), обрабатываемая раз в кадр: O(log n) на вставку и O(1) на просмотр вершины для тысяч событий; (3) корзины тиков для грубой периодики (регенерация на 1 Гц у 500 сущностей, размазанная по 60 кадрам). Выбор часов важен: Time.time (масштабируемое, встаёт на паузе), unscaledTime (меню), realtimeSinceStartup (настенные часы) и серверное время для всего, что игрок мог бы обмануть переводом часов устройства.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Есть два способа сделать кулдаун: считать «осталось 3, 2.9, 2.8...» каждый кадр или один раз записать «буду готов в момент 14:32:05» и просто сравнивать. Второй способ не требует Update вообще — и это разница между 500 таймерами, которые ничего не стоят, и 500 таймерами, которые едят кадр.</p>
+<h3>Три уровня</h3>
+<pre><span class="cm">// 1. Метка времени вместо счётчика — ноль работы в кадре</span>
+float _readyAt;
+void Use() { _readyAt = Time.time + cooldown; }
+bool IsReady =&gt; Time.time &gt;= _readyAt;
+
+<span class="cm">// 2. Планировщик для «сделать через N секунд»</span>
+scheduler.In(3f, () =&gt; Explode());
+<span class="cm">// внутри — min-heap по времени; в Update снимаем всё,</span>
+<span class="cm">// у чего время пришло: O(log n) вставка, тысячи событий</span>
+
+<span class="cm">// 3. Корзины для периодики</span>
+<span class="cm">// регенерация 500 сущностей раз в секунду:</span>
+<span class="cm">// не все сразу, а по 1/60 списка каждый кадр</span>
+int start = (Time.frameCount % 60) * n / 60;</pre>
+<h3>Какие часы брать</h3>
+<ul>
+<li><code>Time.time</code> — игровое время: встаёт на паузе, замедляется в слоумо. Кулдауны способностей — сюда.</li>
+<li><code>Time.unscaledTime</code> — UI, анимации меню, всё, что живёт на паузе.</li>
+<li><code>Time.realtimeSinceStartup</code> — измерения производительности, тайминги вне игровой логики.</li>
+<li><b>Серверное время</b> — таймеры энергии, ежедневные награды: локальные часы игрок переведёт за секунду.</li>
+</ul>
+<h3>Что сказать на собеседовании</h3>
+<p>«Кулдауны — метками времени, а не обратным отсчётом: покадровой работы ноль. Отложенные события — центральный планировщик на min-heap, а не корутина на каждый случай. Периодика — корзинами со стаггерингом. Часы выбираю осознанно: игровые для геймплея, unscaled для UI, серверные для всего, что можно обмануть переводом времени на устройстве».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/ScriptReference/Time.html" target="_blank">Unity: Time API</a> <span>— все виды часов</span></li>
+<li><a href="https://gameprogrammingpatterns.com/event-queue.html" target="_blank">Patterns: Event Queue</a> <span>— очередь отложенных событий</span></li>
+</ul></div>`},
+
+{n:318,c:"Core",p:"core",
+q:`Designing a save/checkpoint system for an open world: what changes at scale?`,
+qru:`Система сохранений/чекпоинтов для открытого мира: что меняется на масштабе?`,
+a:`A linear game saves a small snapshot; an open world cannot serialize the whole world every time. Scaled design: store *deltas from the authored world* — the world is the baseline, the save holds only differences (looted containers by GUID, killed unique NPCs, quest flags, player state, discovered map nodes). Respawnable content is expressed as rules plus timestamps, not per-instance data. Streaming interacts with saving: entities in unloaded chunks have no runtime representation, so their state must live in a chunk-keyed persistent store that the streaming system rehydrates on load. Practical constraints: save size budget (console cert limits), write time (autosave must not hitch — serialize on a worker thread from an immutable snapshot), and versioned migrations for a world that keeps changing across patches. Interview answer names the core idea: save what diverged from the world, not the world.`,
+aru:`Линейная игра сохраняет маленький снимок; открытый мир не может сериализовать весь мир каждый раз. Масштабируемый дизайн: хранить *дельты от авторского мира* — мир и есть базовая линия, а сейв держит только отличия (обысканные контейнеры по GUID, убитые уникальные NPC, флаги квестов, состояние игрока, открытые точки карты). Респавнящийся контент выражается правилами и метками времени, а не данными на экземпляр. Стриминг взаимодействует с сохранением: у сущностей в выгруженных чанках нет рантайм-представления, поэтому их состояние живёт в персистентном хранилище по ключу чанка, которое стриминг «регидратирует» при загрузке. Практические ограничения: бюджет размера сейва (требования сертификации консолей), время записи (автосейв не должен фризить — сериализация в рабочем потоке из иммутабельного снимка) и версионированные миграции для мира, который меняется от патча к патчу. Ключевая идея для ответа: сохраняем то, что разошлось с миром, а не мир.`,
+d:`
+<h3>Простыми словами</h3>
+<p>В линейной игре сейв — это «где я и что у меня в карманах». В открытом мире так нельзя: тысячи сундуков, сотни NPC, десятки квестов. Ключевая идея: мир уже есть на диске в виде сцен и префабов — сохранять надо только ОТЛИЧИЯ от него. Не «список всех сундуков», а «сундуки №17 и №402 обысканы».</p>
+<h3>Что реально лежит в сейве</h3>
+<pre>Игрок: позиция, статы, инвентарь, экипировка
+Дельты мира:
+  looted: [guid1, guid2, ...]           <span class="cm">// обысканное</span>
+  killed: { uniqueNpcGuid: timestamp }  <span class="cm">// уникальные убитые</span>
+  quests: { questId: state }
+  discovered: [nodeIds]
+Правила вместо данных:
+  обычные враги НЕ сохраняются поштучно — они
+  респавнятся по правилу «через N часов игрового времени»
+
+<span class="cm">// Стриминг: состояние живёт по ключу чанка,</span>
+<span class="cm">// сущность создаётся уже «в правильном состоянии»</span>
+chunkStore[chunkId].Apply(spawnedEntities);</pre>
+<h3>Инженерные ограничения</h3>
+<ul>
+<li><b>Автосейв без фриза:</b> собрать иммутабельный снимок в главном потоке (быстро), сериализовать и писать — в фоновом.</li>
+<li><b>Размер:</b> на консолях есть лимиты сертификации; дельта-подход держит сейв в килобайтах вместо мегабайтов.</li>
+<li><b>Версии:</b> мир меняется в патчах — GUID-ы стабильны, а миграции обязательны (вопрос №31).</li>
+<li><b>Атомарность:</b> temp + rename, бэкап-слот. Потерянный сейв в открытом мире — это десятки часов игрока.</li>
+</ul>
+<h3>Что сказать на собеседовании</h3>
+<p>«Сохраняю дельту от авторского мира, а не мир: обысканное и убитое по стабильным GUID, респавн — правилами с метками времени, а не поштучно. Состояние выгруженных чанков живёт в персистентном хранилище по ключу чанка и применяется при спавне. Автосейв — иммутабельный снимок в главном потоке, сериализация в фоне, атомарная запись с бэкапом».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://www.gdcvault.com/play/1022232/Technical-Postmortem-of-The-Witcher" target="_blank">GDC: The Witcher 3 tech postmortem</a> <span>— как это устроено в большом открытом мире</span></li>
+<li><a href="https://docs.unity3d.com/Manual/StreamingAssets.html" target="_blank">Unity: persistent data paths</a> <span>— где и как хранить</span></li>
+</ul></div>`},
+
+{n:319,c:"Core",p:"mid",
+q:`Localization architecture: what does it take beyond swapping strings?`,
+qru:`Архитектура локализации: что нужно помимо подмены строк?`,
+a:`String tables are the easy part. The system layer: keys everywhere (no literals in code or prefabs), a locale-aware provider with fallbacks, and hot-swapping at runtime (players change language in-game and every visible element must update — hence a subscription model, not one-time reads). Content beyond text: localized audio (VO tables), textures with baked words, and even different assets per region (censored gore, symbol changes) — Unity's Localization package handles both string and *asset* tables for exactly this. Formatting correctness: ICU plurals and gender via Smart Strings, number and date formats via CultureInfo, RTL support decided early. Pipeline: export/import to translator formats (XLIFF/CSV), pseudo-localization in CI to catch truncation before translations exist, and character coverage checks against the font atlases. And the schedule reality: translations land late — the architecture must ship with English while keys exist for everything.`,
+aru:`Таблицы строк — простая часть. Системный слой: ключи везде (никаких литералов в коде и префабах), провайдер с учётом локали и фолбэками, и горячая смена в рантайме (игрок меняет язык в игре, и каждый видимый элемент должен обновиться — отсюда модель подписки, а не разового чтения). Контент помимо текста: локализованное озвучание (таблицы VO), текстуры с запечёнными словами и даже разные ассеты по регионам (цензура крови, замена символов) — пакет Unity Localization ведёт и строковые, и *ассетные* таблицы именно для этого. Корректность форматирования: плюрали и род по ICU через Smart Strings, форматы чисел и дат через CultureInfo, поддержка RTL решается рано. Пайплайн: экспорт/импорт в форматы переводчиков (XLIFF/CSV), псевдолокализация в CI для отлова обрезаний до появления переводов и проверка покрытия символов шрифтовыми атласами. И реальность графика: переводы приходят поздно — архитектура должна работать на английском, но с ключами для всего.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Локализация — это не «завести файл с переводами». Это архитектурное требование ко всему: текст берётся по ключу, а не пишется в коде; при смене языка всё на экране обновляется само; вместе с текстом меняются озвучка, картинки с надписями и иногда сам контент; а вёрстка переживает немецкий, который на 35% длиннее.</p>
+<h3>Слои системы</h3>
+<pre>1. Ключи вместо литералов — везде, с первого дня
+   ui.shop.buy_button   вместо   "Купить"
+2. Провайдер с подпиской: смена локали → событие →
+   все подписанные тексты перезапрашивают значение
+   (иначе половина экрана останется на старом языке)
+3. Таблицы АССЕТОВ, а не только строк:
+   озвучка, текстуры с текстом, региональные варианты
+4. Smart Strings для плюралей и рода:
+   "{0} {0:plural:предмет|предмета|предметов}"
+   <span class="cm">// конкатенация "3 " + "предмет(ов)" — фабрика багов</span>
+5. Шрифты: fallback-цепочки и покрытие символов (в.№50)</pre>
+<h3>Процесс, а не только код</h3>
+<p>Псевдолокализация в CI (<i>[!!! Ĥéļļö Ŵöŕļđ !!!]</i>) ловит обрезанные строки и захардкоженный текст до того, как появится хоть один переводчик. Экспорт в XLIFF/CSV — чтобы переводчики работали в своих инструментах. И проверка «все ключи имеют перевод» как гейт релиза, иначе игрок увидит <code>ui.shop.buy_button</code> вместо кнопки.</p>
+<h3>Что сказать на собеседовании</h3>
+<p>«Ключи с первого дня, провайдер с подпиской для горячей смены языка, таблицы не только строк, но и ассетов — озвучка и текстуры с текстом. Плюрали и род через Smart Strings, никогда конкатенацией. Псевдолокализация в CI ловит обрезания заранее, покрытие ключей — гейт релиза. Ретрофит локализации в готовую игру стоит в разы дороже, чем заложить её сразу».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/Packages/com.unity.localization@1.5/manual/index.html" target="_blank">Unity Localization package</a> <span>— таблицы строк и ассетов, Smart Strings</span></li>
+<li><a href="https://docs.unity3d.com/Packages/com.unity.localization@1.5/manual/PseudoLocalization.html" target="_blank">Pseudo-localization</a> <span>— проверка до переводов</span></li>
+</ul></div>`},
+
+{n:320,c:"Core",p:"mid",
+q:`Audio architecture in Unity: AudioSource sprawl vs a mixer-driven system.`,
+qru:`Архитектура аудио в Unity: россыпь AudioSource против системы на миксере.`,
+a:`Naive setups attach an AudioSource per object and call <code>PlayOneShot</code> everywhere — leading to unbounded voice counts (mobile hardware mixes a limited number; excess voices are culled unpredictably), no central volume control, and no way to duck music under dialogue. Production architecture: a small pooled set of AudioSources managed by an audio service with priority and voice limits (a "max 4 simultaneous footsteps" rule prevents a stampede from drowning everything); routing through AudioMixer groups (Music/SFX/UI/Voice) so settings sliders, ducking (sidechain compression), and snapshots for game states are declarative; and a data layer of audio events (ScriptableObject or FMOD/Wwise events) so designers tune without code. Middleware (FMOD/Wwise) buys adaptive music, deep DSP, memory streaming control, and profiler tooling — the standard choice when audio design is a real discipline on the team.`,
+aru:`Наивная схема — AudioSource на каждом объекте и PlayOneShot повсюду — даёт неограниченное число голосов (мобильное железо микширует ограниченное количество, лишние отсекаются непредсказуемо), отсутствие централизованной громкости и невозможность приглушить музыку под диалог. Продакшен-архитектура: небольшой пул AudioSource под управлением аудио-сервиса с приоритетами и лимитами голосов (правило «максимум 4 одновременных шага» спасает от того, что толпа заглушит всё); маршрутизация через группы AudioMixer (Music/SFX/UI/Voice), чтобы слайдеры настроек, дакинг (sidechain-компрессия) и снапшоты под состояния игры были декларативными; и слой данных в виде аудио-событий (ScriptableObject или события FMOD/Wwise), чтобы дизайнеры крутили без кода. Мидлвары (FMOD/Wwise) дают адаптивную музыку, глубокий DSP, контроль стриминга памяти и профайлинг — стандартный выбор, когда звуковой дизайн в команде это отдельная дисциплина.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Разница между «звук работает» и «звук сделан» — это управление голосами и маршрутизация. Когда двадцать врагов одновременно шагают, стреляют и умирают, наивная система просто вываливает 60 звуков в микшер, железо часть отбрасывает как попало, и игрок слышит кашу. Правильная система знает, что важнее, и режет лишнее осознанно.</p>
+<h3>Слои системы</h3>
+<pre>1. Пул источников + лимиты и приоритеты
+   audio.Play(Sfx.Footstep, pos, priority: 3, maxVoices: 4);
+   <span class="cm">// пятый шаг не играет вовсе — и это правильно</span>
+
+2. AudioMixer группы: Master → Music / SFX / UI / Voice
+   - слайдеры настроек = громкость группы (в дБ! логарифм)
+   - дакинг: музыка приглушается под диалогом (sidechain)
+   - снапшоты: "underwater", "paused", "combat" — переход
+     между состояниями одной строкой
+
+3. События вместо клипов в коде:
+   [SerializeField] AudioEvent _hitSound;
+   <span class="cm">// SO с рандомизацией питча/громкости и списком вариантов —</span>
+   <span class="cm">// дизайнер настраивает, программист не участвует</span></pre>
+<h3>Когда мидлвар</h3>
+<p>FMOD/Wwise берут на себя адаптивную музыку (слои, переходы по тактам), сложный DSP, контроль памяти и стриминга, и дают звуковику собственный инструмент с профайлером. Цена: интеграция, лицензия на релизе, ещё один билд-пайплайн. Правило: есть выделенный саунд-дизайнер и амбиции по звуку — берите мидлвар; маленькая команда и функциональный звук — хватит AudioMixer и слоя событий.</p>
+<h3>Что сказать на собеседовании</h3>
+<p>«Пул источников с приоритетами и лимитами голосов вместо AudioSource на каждом объекте, маршрутизация через группы AudioMixer со снапшотами и дакингом, аудио-события как данные для дизайнеров. Помню про логарифмическую шкалу дБ у слайдеров и про лимит аппаратных голосов на мобилках. Мидлвар — когда звук отдельная дисциплина в команде».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/Manual/AudioMixer.html" target="_blank">Unity: AudioMixer</a> <span>— группы, снапшоты, дакинг</span></li>
+<li><a href="https://www.fmod.com/docs/2.02/unity/welcome.html" target="_blank">FMOD for Unity</a> <span>— интеграция мидлвара</span></li>
+</ul></div>`},
+
+{n:321,c:"Core",p:"core",
+q:`NavMesh: how does navigation work, and what are its limits?`,
+qru:`NavMesh: как работает навигация и каковы её ограничения?`,
+a:`Baking voxelizes the walkable world and produces a convex-polygon mesh; agents path with A* over polygons, then smooth the corridor with funnel/string-pulling, and steer with local avoidance (RVO) to dodge each other. Costs and limits: baked data is static (NavMeshObstacle carves at runtime with a cost, or use NavMeshSurface runtime baking from the AI Navigation package); agents share a radius/height per agent type — a single mesh cannot serve wildly different body sizes without multiple surfaces; and off-mesh links express jumps/ladders explicitly. Failure modes worth naming: agents stuck at carved obstacle borders, path failure returning partial paths (always check <code>NavMeshPath.status</code>), and RVO producing "polite deadlock" in doorways — usually solved with priorities and crowd density rules rather than better pathing.`,
+aru:`Запекание вокселизирует проходимый мир и строит меш из выпуклых полигонов; агенты ищут путь A* по полигонам, затем сглаживают коридор (funnel/string-pulling) и рулят с локальным избеганием (RVO), чтобы расходиться друг с другом. Цена и ограничения: запечённые данные статичны (NavMeshObstacle вырезает дыры в рантайме за отдельную цену, либо runtime-бейк через NavMeshSurface из пакета AI Navigation); агенты делят радиус и высоту в рамках типа — один меш не обслужит сильно разные габариты без нескольких поверхностей; прыжки и лестницы задаются явными off-mesh links. Режимы отказа: агенты застревают на границах вырезанных препятствий, поиск возвращает частичный путь (всегда проверяйте NavMeshPath.status), а RVO даёт «вежливый дедлок» в дверных проёмах — лечится приоритетами и правилами плотности толпы, а не улучшением поиска пути.`,
+d:`
+<h3>Простыми словами</h3>
+<p>NavMesh — это «карта пола», заранее посчитанная из геометрии уровня: где можно ходить, а где нет. Агент ищет путь не по пикселям и не по кубикам, а по крупным выпуклым многоугольникам — поэтому поиск быстрый даже на большом уровне. Дальше путь сглаживается, и агент едет по нему, по дороге расталкиваясь с другими.</p>
+<h3>Что происходит внутри</h3>
+<pre>Бейк:   воксели проходимости → полигоны navmesh
+Поиск:  A* по полигонам (их сотни, а не миллионы клеток)
+Сглаж.: funnel algorithm — из «коридора полигонов»
+        получается прямая ломаная, а не зигзаг по центрам
+Движение: агент едет по углам пути + RVO-избегание соседей
+
+<span class="cm">// Обязательная проверка, о которой забывают:</span>
+var path = new NavMeshPath();
+agent.CalculatePath(target, path);
+if (path.status != NavMeshPathStatus.PathComplete)
+    <span class="cm">// путь ЧАСТИЧНЫЙ — агент дойдёт «примерно туда»</span>
+    <span class="cm">// и будет тупить у стены, если это не обработать</span></pre>
+<h3>Границы и обходы</h3>
+<ul>
+<li><b>Статичность:</b> изменил геометрию — навмеш устарел. Динамические препятствия — NavMeshObstacle с carving (стоит CPU) или runtime-бейк поверхности.</li>
+<li><b>Один размер агента:</b> мышь и великан не помещаются в один навмеш — нужны разные agent types и, соответственно, разные поверхности.</li>
+<li><b>Дверные пробки:</b> RVO вежлив — толпа в узком проёме встаёт намертво. Лечится приоритетами агентов и логикой очереди, а не настройками avoidance.</li>
+<li><b>Прыжки и лестницы:</b> только через off-mesh links — навмеш плоский по своей природе.</li>
+</ul>
+<h3>Что сказать на собеседовании</h3>
+<p>«Бейк даёт полигональный меш, A* идёт по полигонам, funnel сглаживает, RVO расталкивает. Всегда проверяю NavMeshPathStatus — частичный путь молча ломает поведение ИИ. Динамика — obstacle с carving или runtime-бейк; разные габариты — разные agent types. Пробки в проёмах решаю приоритетами и правилами толпы, а не тюнингом avoidance».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/Packages/com.unity.ai.navigation@2.0/manual/index.html" target="_blank">Unity AI Navigation package</a> <span>— современный навмеш с runtime-бейком</span></li>
+<li><a href="http://digestingduck.blogspot.com/" target="_blank">Digesting Duck (автор Recast/Detour)</a> <span>— блог создателя технологии под капотом NavMesh</span></li>
+</ul></div>`},
+
+{n:322,c:"Core",p:"mid",
+q:`AI architecture: FSM vs behaviour trees vs GOAP vs utility AI.`,
+qru:`Архитектура ИИ: FSM против деревьев поведения, GOAP и utility AI.`,
+a:`FSM: explicit states and transitions — readable and debuggable for small brains (patrol/chase/attack), but transitions grow quadratically and reuse is poor. Behaviour trees: composable nodes (sequence, selector, decorator) evaluated top-down each tick — the industry default for action games because sub-trees are reusable, designers can author them, and priority is structural; cost is a tick-time evaluation and hidden state in blackboards. GOAP: actions with preconditions/effects, planner searches for a sequence to satisfy a goal — emergent and flexible (F.E.A.R. lineage), but planning cost and unpredictable behaviour make debugging and tuning harder. Utility AI: every action scores itself by curves over world facts, highest score wins — excellent for simulation-style agents (Sims) and smooth priority blending, but tuning many curves is an art and "why did it do that" needs visualization tooling. Production reality: BTs with utility-scored selectors is the common hybrid, and the real work is the perception/blackboard layer feeding whichever brain you pick.`,
+aru:`FSM: явные состояния и переходы — читаемо и отлаживаемо для маленьких мозгов (патруль/погоня/атака), но число переходов растёт квадратично, а переиспользование слабое. Деревья поведения: композируемые узлы (sequence, selector, decorator), обходимые сверху вниз каждый тик — индустриальный дефолт экшенов: поддеревья переиспользуются, дизайнер их авторит, приоритет выражен структурой; цена — вычисление на тик и скрытое состояние в blackboard. GOAP: действия с предусловиями и эффектами, планировщик ищет последовательность под цель — эмерджентно и гибко (наследие F.E.A.R.), но цена планирования и непредсказуемость усложняют отладку и тюнинг. Utility AI: каждое действие само оценивает себя кривыми по фактам мира, побеждает максимум — отлично для симуляционных агентов (Sims) и плавного смешения приоритетов, но тюнинг десятков кривых — искусство, а на вопрос «почему он это сделал» нужна визуализация. Реальность: гибрид BT с utility-скорингом в селекторах, а основная работа — слой восприятия и blackboard, кормящий любой из этих мозгов.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Четыре способа решить «что агент делает прямо сейчас». FSM — жёсткие состояния со стрелками. Дерево поведения — приоритетный список задач, читаемый сверху вниз. GOAP — агент сам планирует цепочку действий под цель. Utility — каждое действие говорит «моя полезность 0.7», побеждает самое полезное. Порядок в списке примерно соответствует росту гибкости и падению отлаживаемости.</p>
+<h3>Как выбирать</h3>
+<pre>FSM:      &lt;7 состояний, простой враг, чёткие переходы
+          (турель, мина, простой моб). Дальше — гниёт.
+
+BT:       ДЕФОЛТ экшена. Дерево читается как ТЗ:
+          Selector[ Убегать(если hp&lt;20%),
+                    Атаковать(если видит),
+                    Патрулировать ]
+          Поддеревья переиспользуются между типами врагов.
+
+GOAP:     когда важна эмерджентность и «умные» цепочки
+          (F.E.A.R.: обойти с фланга через окно).
+          Цена: планировщик + отладка «почему он туда полез».
+
+Utility:  симуляция потребностей, плавные приоритеты
+          (Sims, менеджеры). Тюнинг кривых = основная работа.</pre>
+<h3>Что на самом деле определяет качество ИИ</h3>
+<p>Не выбор мозга, а <b>слой восприятия</b>: что агент видит, помнит и как реагирует на потерю цели. Плохое восприятие с идеальным BT даёт врага, который телепортирует внимание; хорошее восприятие с простым FSM выглядит умно. Второй фактор — читаемость намерений для игрока (анимации подготовки, реплики), а не сложность алгоритма.</p>
+<h3>Что сказать на собеседовании</h3>
+<p>«FSM для простых мобов, BT как дефолт для экшена — переиспользуемые поддеревья и структурный приоритет, GOAP когда нужна эмерджентность ценой отладки, utility для симуляций и плавных приоритетов. На практике гибрид: BT со scored-селекторами. И главное — качество ИИ определяется слоем восприятия и читаемостью намерений, а не выбором алгоритма».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://www.gameaipro.com/" target="_blank">Game AI Pro (книги бесплатно)</a> <span>— золотой стандарт: главы по BT, GOAP, utility от практиков</span></li>
+<li><a href="https://www.gdcvault.com/play/1014938/Three-States-and-a-Plan" target="_blank">GDC: Three States and a Plan (F.E.A.R.)</a> <span>— первоисточник GOAP в играх</span></li>
+</ul></div>`},
+
+{n:323,c:"Core",p:"mid",
+q:`Spatial partitioning for gameplay queries: grids, quadtrees, and when Physics is enough.`,
+qru:`Пространственное разбиение для геймплейных запросов: сетки, quadtree и когда хватает физики.`,
+a:`"Find all enemies within 20m" done naively is O(n) per query and O(n²) per frame across agents. Options: uniform grid — O(1) insert/query, ideal when entity density is even and query radius is known (most action games); quadtree/octree — adapts to uneven density, costlier updates, better for large sparse worlds; spatial hashing — grid without bounds, good for unbounded worlds; k-d tree — great for static point sets and nearest-neighbour, poor for moving entities. But first ask whether the physics engine already solves it: <code>OverlapSphereNonAlloc</code> on a dedicated layer uses PhysX's broadphase, which is a tuned spatial structure you get for free — for a few hundred entities that is usually the right answer. Build your own when queries are frequent, entities are numerous, or you need query types physics does not offer (k-nearest, sorted by threat, per-team subsets).`,
+aru:`«Найти всех врагов в радиусе 20 м» наивно — это O(n) на запрос и O(n²) на кадр по всем агентам. Варианты: равномерная сетка — O(1) вставка и запрос, идеальна при ровной плотности и известном радиусе (большинство экшенов); quadtree/octree — адаптируется к неравномерной плотности, дороже в обновлении, лучше для больших разреженных миров; пространственный хэш — сетка без границ для безграничных миров; k-d дерево — отлично для статических наборов точек и ближайшего соседа, плохо для движущихся. Но сначала спросите, не решает ли это уже физика: OverlapSphereNonAlloc по выделенному слою использует broadphase PhysX — настроенную пространственную структуру, доступную бесплатно; для пары сотен сущностей это обычно и есть правильный ответ. Своё строят, когда запросов много, сущностей тысячи или нужны типы запросов, которых у физики нет (k ближайших, сортировка по угрозе, срезы по командам).`,
+d:`
+<h3>Простыми словами</h3>
+<p>Вопрос «кто рядом со мной» — самый частый в геймплее: враги ищут цели, AoE ищет жертв, ИИ ищет укрытия. Наивно — перебрать всех и померить дистанцию. При 500 агентах, каждый из которых спрашивает каждый кадр, это 250 000 проверок в кадр. Пространственное разбиение превращает это в «посмотреть в свою клетку и соседние».</p>
+<h3>Лестница решений</h3>
+<pre>1. СНАЧАЛА: а физика не решает?
+   Physics.OverlapSphereNonAlloc(pos, r, buf, enemyMask);
+   <span class="cm">// broadphase PhysX — уже оптимизированная структура.</span>
+   <span class="cm">// До ~сотен сущностей это правильный ответ. Бесплатно.</span>
+
+2. Своя равномерная сетка (когда запросов тысячи):
+   cellIndex = (int)(pos.x / cellSize) + ... ;
+   <span class="cm">// вставка O(1), запрос = своя клетка + соседние</span>
+   <span class="cm">// размер клетки ≈ типичный радиус запроса</span>
+
+3. Quadtree/Octree: неравномерная плотность,
+   огромный мир с пустотами. Дороже обновление.
+
+4. Пространственный хэш: мир без границ (процедурный).
+
+5. k-d дерево: статические точки (укрытия, вейпоинты) —
+   строится один раз, отвечает на «ближайший» идеально.</pre>
+<h3>Что сказать на собеседовании</h3>
+<p>«Сначала проверяю, не хватает ли broadphase физики через OverlapNonAlloc по слою — до сотен сущностей это бесплатно и правильно. Своё строю, когда запросов тысячи: равномерная сетка с клеткой под радиус запроса при ровной плотности, quadtree при неравномерной, k-d для статических наборов. И помню, что структура должна обновляться при движении — иначе она врёт, а это худший вид бага».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://gameprogrammingpatterns.com/spatial-partition.html" target="_blank">Patterns: Spatial Partition</a> <span>— обзор всех структур с кодом</span></li>
+<li><a href="https://docs.unity3d.com/ScriptReference/Physics.OverlapSphereNonAlloc.html" target="_blank">OverlapSphereNonAlloc</a> <span>— бесплатный вариант через физику</span></li>
+</ul></div>`},
+
+{n:324,c:"Core",p:"core",
+q:`Input architecture: buffering, rebinding, and device switching done properly.`,
+qru:`Архитектура ввода: буферизация, ребиндинг и переключение устройств по-взрослому.`,
+a:`Beyond reading keys: (1) intent layer — code reacts to <code>Jump</code>, never to <code>Space</code>, which is what makes rebinding and multi-device possible at all; (2) buffering — an input pressed slightly before it becomes valid must still fire (jump buffered ~100ms before landing, attack buffered during recovery frames): store timestamped inputs and consume them when the system becomes ready, which is the difference between "responsive" and "eats my inputs"; (3) device switching — the last-used device drives UI prompt glyphs and can change control schemes mid-session (a player grabbing a gamepad must see gamepad icons immediately); (4) context maps — Gameplay/UI/Vehicle action maps swapped by game state, so the same button means different things without if-chains. The new Input System provides actions, maps, rebinding, and device pairing; buffering and prompt glyph mapping remain yours to build.`,
+aru:`Помимо чтения клавиш: (1) слой намерений — код реагирует на Jump, а не на Space, только это и делает возможными ребиндинг и мультиустройство; (2) буферизация — ввод, нажатый чуть раньше момента, когда он валиден, всё равно должен сработать (прыжок буферизуется ~100 мс до приземления, атака — во время кадров восстановления): вводы складываются со штампами времени и потребляются, когда система готова, — это и есть разница между «отзывчиво» и «съедает нажатия»; (3) переключение устройств — последнее использованное устройство определяет глифы подсказок в UI и может менять схему управления посреди сессии (взял геймпад — сразу видит иконки геймпада); (4) контекстные карты — Gameplay/UI/Vehicle переключаются состоянием игры, поэтому одна кнопка значит разное без цепочек if. Новая Input System даёт действия, карты, ребиндинг и спаривание устройств; буферизация и карта глифов — ваша часть работы.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Разница между «управление работает» и «управление ощущается» — это буферизация и намерения. Игрок нажал прыжок за 80 мс до приземления: наивный код проверит isGrounded, увидит false и выбросит нажатие — игрок скажет «игра съела мой прыжок». Буферизованный ввод запомнит нажатие и выстрелит, как только приземление случится.</p>
+<h3>Четыре слоя</h3>
+<pre>1. Намерения, а не клавиши:
+   if (input.JumpPressed)   <span class="cm">// ✔ ребиндинг возможен</span>
+   if (Input.GetKey(KeyCode.Space))  <span class="cm">// ✘ прибито гвоздями</span>
+
+2. Буфер ввода (game feel!):
+   float _jumpBufferedAt = -99;
+   void OnJump() =&gt; _jumpBufferedAt = Time.time;
+   void Tick() {
+     bool buffered = Time.time - _jumpBufferedAt &lt; 0.12f;
+     if (buffered &amp;&amp; (grounded || coyoteOk)) { Jump();
+       _jumpBufferedAt = -99; }   <span class="cm">// потребили</span>
+   }
+
+3. Карты контекста: Gameplay / UI / Vehicle / Dialogue
+   input.SwitchMap("UI");   <span class="cm">// Escape значит разное — без if-ов</span>
+
+4. Глифы по устройству: последнее активное устройство →
+   иконки в подсказках (клавиатура/DualSense/Xbox)</pre>
+<h3>Что сказать на собеседовании</h3>
+<p>«Код реагирует на намерения (Jump), а не на клавиши — иначе ребиндинг невозможен. Буферизация ввода со штампами времени плюс coyote time — это не мелочь, а половина ощущения отзывчивости. Контексты — через action maps, а не проверки состояния в обработчиках. Глифы подсказок следуют за последним активным устройством, переключение — мгновенное посреди сессии».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/Packages/com.unity.inputsystem@1.7/manual/index.html" target="_blank">Input System</a> <span>— действия, карты, ребиндинг, устройства</span></li>
+<li><a href="https://www.youtube.com/watch?v=yorTG9at90g" target="_blank">GDC: Math for Game Programmers — Juicing your feel</a> <span>— буферы, coyote time и прочая механика ощущения</span></li>
+</ul></div>`},
+
+{n:325,c:"Core",p:"mid",
+q:`Camera systems: what does Cinemachine actually solve, and when do you write your own?`,
+qru:`Системы камеры: что реально решает Cinemachine и когда писать свою?`,
+a:`Cinemachine provides virtual cameras with declarative behaviours: body (follow/transposer/orbital), aim (composer with dead/soft zones), noise, collision avoidance, blends between vcams driven by priority, plus timeline integration for cutscenes — it turns camera work into designer-tunable assets rather than bespoke scripts. That covers the bulk of third-person, 2D follow, and cinematic needs, including the parts teams routinely get wrong (damping without lag artifacts, target groups, obstacle handling). You write your own when the camera *is* a game mechanic — puzzle games with camera-driven perspective, custom rail systems tied to level scripting, physics-coupled first-person cameras with recoil and lean, or when you need exact deterministic behaviour for netcode/replays. Even then, the common approach is a custom Cinemachine extension rather than abandoning the system, keeping blending and timeline support.`,
+aru:`Cinemachine даёт виртуальные камеры с декларативным поведением: body (follow/transposer/orbital), aim (composer с мёртвыми и мягкими зонами), шум, обход препятствий, блендинг между vcam по приоритету плюс интеграция с Timeline для катсцен — работа с камерой превращается в настраиваемые дизайнером ассеты вместо самописных скриптов. Это закрывает основную массу задач третьего лица, 2D-слежения и кинематографии, включая то, что команды регулярно делают неправильно (демпфирование без артефактов запаздывания, target groups, обработка препятствий). Своё пишут, когда камера *является* механикой — головоломки с перспективой, рельсовые системы, привязанные к скриптингу уровня, физически связанные камеры от первого лица с отдачей и наклоном, или когда нужна точная детерминированность для неткода и реплеев. Но и тогда обычно делают расширение Cinemachine, а не отказ от него, чтобы сохранить блендинг и поддержку Timeline.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Камера кажется простой («следуй за игроком»), пока не выясняется, что нужны плавность без запаздывания, мёртвая зона в центре экрана, обход стен, тряска при взрывах, переключение на катсцену и обратно. Cinemachine — это готовый набор всего перечисленного, настраиваемый дизайнером без кода.</p>
+<h3>Что даёт из коробки</h3>
+<pre>Body:   как камера ДВИЖЕТСЯ (follow с демпфированием,
+        орбита вокруг цели, рельсы, framing transposer)
+Aim:    куда СМОТРИТ (composer с dead zone — цель может
+        гулять в центре, не дёргая камеру)
+Extensions: collider (обход стен), confiner (границы),
+        noise (тряска), target group (несколько целей —
+        камера сама отъезжает, чтобы вместить всех)
+Blending: приоритеты vcam + кривые перехода;
+        катсцена = просто vcam с высоким приоритетом
+Timeline: камеры как треки в катсценах
+
+<span class="cm">// Своя камера оправдана, когда камера — механика:</span>
+<span class="cm">// перспективные головоломки, детерминизм для реплеев,</span>
+<span class="cm">// физически связанная FPS-камера с отдачей и leaning.</span>
+<span class="cm">// Но чаще правильный ответ — CinemachineExtension.</span></pre>
+<h3>Что сказать на собеседовании</h3>
+<p>«Cinemachine решает body/aim/noise/collision/blending декларативно и отдаёт настройку дизайнеру — включая то, что команды делают неправильно вручную: демпфирование без лага, мёртвые зоны, обход препятствий, target group. Свою пишу, когда камера — механика или нужен детерминизм для реплеев; чаще расширяю Cinemachine, чтобы не потерять блендинг и Timeline».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/Packages/com.unity.cinemachine@3.1/manual/index.html" target="_blank">Cinemachine docs</a> <span>— все компоненты и расширения</span></li>
+<li><a href="https://www.gdcvault.com/play/1025927/Camera" target="_blank">GDC: Camera design talks</a> <span>— как думают про камеру в шипнутых играх</span></li>
+</ul></div>`},
+
+{n:326,c:"Core",p:"mid",
+q:`Procedural generation architecture: determinism, seeds, and content validity.`,
+qru:`Архитектура процедурной генерации: детерминизм, сиды и валидность контента.`,
+a:`Core requirement is reproducibility: the same seed must produce the same world on every platform and version, so use your own PRNG (xorshift/PCG) rather than <code>UnityEngine.Random</code> (shared global state mutated by VFX), and derive per-feature seeds hierarchically (<code>worldSeed → chunkSeed → roomSeed</code>) so generating a chunk never depends on generation order. Structure generation in passes (layout → connectivity → props → validation), each pure and testable. Validity is the hard part: guarantee reachability (a key never behind the door it opens), difficulty pacing, and no degenerate layouts — do it by construction (grammar/WFC constraints) rather than by generate-and-check where possible, and always keep an automated validator that generates thousands of seeds in CI and asserts invariants. Ship-time practicality: a seed field in debug builds, plus the ability to save a generated world's seed with the save file for bug reproduction.`,
+aru:`Ключевое требование — воспроизводимость: один сид обязан давать один мир на всех платформах и версиях, поэтому используйте свой PRNG (xorshift/PCG), а не UnityEngine.Random с общим глобальным состоянием, которое мутируют VFX, и выводите сиды иерархически (worldSeed → chunkSeed → roomSeed), чтобы генерация чанка не зависела от порядка генерации. Стройте генерацию проходами (планировка → связность → пропсы → валидация), каждый чистый и тестируемый. Сложная часть — валидность: гарантировать достижимость (ключ никогда не за дверью, которую открывает), темп сложности и отсутствие вырожденных планировок — по возможности по построению (грамматики, ограничения WFC), а не «сгенерировали и проверили»; и всегда держите автоматический валидатор, который в CI прогоняет тысячи сидов и проверяет инварианты. Практика релиза: поле сида в debug-билдах и сохранение сида мира вместе с сейвом для воспроизведения багов.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Процедурная генерация — это функция: сид на входе, мир на выходе. Всё остальное следует из этого. Если один и тот же сид даёт разные миры (потому что кто-то дёрнул общий Random по дороге), то баг «на уровне 7 нельзя пройти» невоспроизводим, а значит неисправим.</p>
+<h3>Три правила</h3>
+<pre><span class="cm">// 1. Свой PRNG, а не UnityEngine.Random</span>
+var rng = new PcgRandom(seed);
+<span class="cm">// UnityEngine.Random — глобальное состояние: партикл,</span>
+<span class="cm">// дёрнувший его между вызовами, ломает воспроизводимость</span>
+
+<span class="cm">// 2. Иерархия сидов: генерация чанка НЕ зависит от порядка</span>
+var chunkSeed = Hash(worldSeed, chunkX, chunkY);
+var roomSeed  = Hash(chunkSeed, roomIndex);
+<span class="cm">// зашёл в чанк первым или сотым — результат одинаков</span>
+
+<span class="cm">// 3. Проходы, каждый чистый и тестируемый</span>
+layout → connectivity → lock&key → props → validate</pre>
+<h3>Валидность — там, где проекты умирают</h3>
+<p>Сгенерировать красиво легко, гарантировать проходимость — сложно. Два подхода: «по построению» (генерируем граф связности, потом расставляем замки/ключи в порядке топологической сортировки — тупик невозможен математически) и «сгенерировали-проверили» (быстро писать, но валидатор должен уметь отклонять, а генератор — пробовать снова, что даёт непредсказуемое время). И тот и другой требуют CI-теста: прогнать 10 000 сидов, проверить инварианты — достижимость, размер, темп сложности.</p>
+<h3>Что сказать на собеседовании</h3>
+<p>«Генерация — чистая функция от сида: свой PRNG вместо глобального Random, иерархические сиды, чтобы результат не зависел от порядка обхода, проходы вместо монолита. Валидность обеспечиваю по построению — например, замки и ключи расставляю по топологической сортировке графа связности. И CI-тест на тысячах сидов с проверкой инвариантов: сид сохраняю в сейв для воспроизведения багов».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://www.pcgbook.com/" target="_blank">Procedural Content Generation in Games (книга бесплатно)</a> <span>— академический, но практичный обзор всех подходов</span></li>
+<li><a href="https://github.com/mxgmn/WaveFunctionCollapse" target="_blank">Wave Function Collapse</a> <span>— генерация с ограничениями, эталонная реализация</span></li>
+</ul></div>`},
+
+{n:327,c:"Core",p:"mid",
+q:`Modding support: what does it require architecturally?`,
+qru:`Поддержка модов: что она требует архитектурно?`,
+a:`Three layers of ambition. Data mods: expose game data as external files (JSON/ScriptableObject exports) with a documented schema and a load-order/merge system — cheapest, safest, covers balance and content variants. Asset mods: load user assets at runtime — AssetBundles built against your version (version-locked and fragile) or common formats (glTF, PNG, WAV) with a runtime importer (more work, far more robust across patches). Code mods: the hard one — C# plugin DLLs require reflection-friendly APIs and cannot run under IL2CPP, so shipping Mono for PC, or embedding a scripting VM (Lua via MoonSharp/XLua, or a WASM sandbox) is the practical path; sandboxing matters because mods run with your process privileges. Cross-cutting concerns: a stable public API surface you promise not to break, mod discovery/ordering/conflict rules, and Steam Workshop integration. Decide early — retrofitting mod support into a tightly-coupled codebase is close to a rewrite.`,
+aru:`Три уровня амбиций. Data-моды: вынести игровые данные во внешние файлы (JSON/экспорт ScriptableObject) с документированной схемой и системой порядка загрузки и слияния — дёшево, безопасно, покрывает баланс и вариации контента. Asset-моды: загрузка пользовательских ассетов в рантайме — AssetBundle, собранные под вашу версию (жёсткая привязка и хрупкость), либо распространённые форматы (glTF, PNG, WAV) со своим рантайм-импортёром (больше работы, но куда устойчивее к патчам). Code-моды: самое сложное — плагины на C# требуют дружелюбного к рефлексии API и не работают под IL2CPP, поэтому практичный путь — Mono-сборка для PC либо встроенная скриптовая VM (Lua через MoonSharp/XLua или WASM-песочница); песочница важна, потому что мод работает с правами вашего процесса. Сквозные вопросы: стабильная публичная поверхность API, которую вы обещаете не ломать, обнаружение модов, порядок и правила конфликтов, интеграция со Steam Workshop. Решать надо рано — ретрофит модов в сильно связанный код близок к переписыванию.`,
+d:`
+<h3>Простыми словами</h3>
+<p>«Поддержать моды» может значить три очень разные вещи: дать менять числа (баланс), дать добавлять контент (модели, звуки) или дать писать код. Сложность растёт на порядок с каждым уровнем, и главный вопрос не технический, а обязательство: публичный API нельзя ломать патчами, иначе моды умирают каждое обновление и сообщество уходит.</p>
+<h3>Три уровня</h3>
+<pre>1. ДАННЫЕ (дёшево, начинайте отсюда):
+   вынести баланс в JSON/CSV со схемой + порядок загрузки
+   modA переопределяет базу, modB переопределяет modA
+   Уже покрывает 80% желаний сообщества.
+
+2. АССЕТЫ:
+   AssetBundle — привязаны к вашей версии Unity, ломаются
+   на каждом апгрейде движка;
+   Открытые форматы (glTF/PNG/WAV) + свой импортёр —
+   работы больше, живут годами.
+
+3. КОД:
+   C#-плагины → нужен Mono (под IL2CPP не работает!)
+   Скриптовая VM (Lua/MoonSharp) → песочница, безопасность,
+   стабильный API — правильный путь для большинства
+   Помните: мод исполняется с правами вашего процесса.</pre>
+<h3>Что сказать на собеседовании</h3>
+<p>«Три уровня: данные, ассеты, код — с ростом сложности на порядок. Начинаю с данных: внешняя схема, порядок загрузки, правила конфликтов. Ассеты — лучше открытые форматы со своим импортёром, чем AssetBundle, привязанные к версии движка. Код — только через скриптовую VM с песочницей, потому что C#-плагины несовместимы с IL2CPP. И главное обязательство — стабильный публичный API, который не ломается патчами».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://partner.steamgames.com/doc/features/workshop" target="_blank">Steam Workshop docs</a> <span>— интеграция распространения модов</span></li>
+<li><a href="https://www.moonsharp.org/" target="_blank">MoonSharp (Lua для C#)</a> <span>— встраиваемая VM, работает под IL2CPP</span></li>
+</ul></div>`},
+
+{n:328,c:"Core",p:"core",
+q:`Feature flags and remote config in a live game: architecture and pitfalls.`,
+qru:`Фиче-флаги и remote config в live-игре: архитектура и подводные камни.`,
+a:`Remote config lets you change balance, toggle features, and stage rollouts without a store update — essential for live ops where a client patch takes days of review. Architecture: a typed config layer with defaults baked into the build (the game must be fully playable offline and on first launch before any fetch), fetch-and-cache with versioning, and an explicit apply point — never mutate live gameplay mid-session unless the change is designed for it. Pitfalls: config that arrives after systems initialized (define which values are read once at boot vs live), untyped string maps sprayed through code (wrap in a schema class with validation), flag debt (dead flags nobody removes), and the big one — a bad config can break every client instantly, so treat config changes like deploys: review, staged rollout by cohort, monitoring, and an instant rollback path. Also plan for cheating: client-side flags are visible and modifiable, so anything security-relevant must be enforced server-side.`,
+aru:`Remote config позволяет менять баланс, включать фичи и делать поэтапные раскатки без апдейта в сторе — критично для live ops, где патч клиента это дни ревью. Архитектура: типизированный слой конфига с дефолтами, запечёнными в билд (игра обязана быть полностью играбельной офлайн и при первом запуске до любого fetch), загрузка с кэшированием и версионированием, и явная точка применения — никогда не менять живой геймплей посреди сессии, если изменение на это не рассчитано. Подводные камни: конфиг, пришедший после инициализации систем (определите, что читается один раз на старте, а что живо), нетипизированные строковые словари по всему коду (обернуть в класс-схему с валидацией), долг флагов (мёртвые флаги, которые никто не удаляет) и главное — плохой конфиг ломает всех клиентов мгновенно, поэтому изменения конфига это деплой: ревью, поэтапная раскатка по когортам, мониторинг и мгновенный откат. И учитывайте читеров: клиентские флаги видимы и изменяемы, всё, что связано с безопасностью, обязано проверяться на сервере.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Патч в сторе — это дни ревью. Remote config — это способ поменять числа и включить фичи прямо сейчас: игра при старте спрашивает сервер «какие сейчас настройки». Отсюда суперсила (сломался баланс — починили за минуту) и суперопасность (сломали конфиг — сломали игру у всех одновременно).</p>
+<h3>Правила архитектуры</h3>
+<pre>1. Дефолты В БИЛДЕ. Игра играбельна офлайн и на первом
+   запуске до любого fetch. Конфиг — уточнение, не условие.
+
+2. Типизированная схема, а не строковый словарь:
+   class GameConfig { public float DropRate = 0.15f; ... }
+   <span class="cm">// с валидацией диапазонов при применении —</span>
+   <span class="cm">// DropRate = 15.0 из опечатки не должен доехать до игрока</span>
+
+3. Явная точка применения:
+   что читается один раз на старте (структура экономики),
+   а что можно менять живьём (баланс дропа) — решается
+   заранее и документируется, иначе полусессии в старом
+   состоянии, полусессии в новом = невоспроизводимые баги.
+
+4. Конфиг = деплой: ревью, раскатка на 5% → 50% → 100%,
+   метрики, кнопка отката.</pre>
+<h3>Что сказать на собеседовании</h3>
+<p>«Дефолты в билде — игра работает офлайн; конфиг типизирован и валидируется при применении; явно разделено, что читается на старте, а что живо. Изменение конфига трактую как деплой: ревью, поэтапная раскатка, мониторинг, откат. Флаги имеют владельцев и срок жизни, иначе копится долг. И всё, что влияет на честность, проверяется сервером — клиентские флаги игрок видит и правит».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity.com/ugs/manual/remote-config/manual/WhatsRemoteConfig" target="_blank">Unity Remote Config</a> <span>— официальный сервис и его модель</span></li>
+<li><a href="https://martinfowler.com/articles/feature-toggles.html" target="_blank">Martin Fowler: Feature Toggles</a> <span>— каноническая статья про типы флагов и их долг</span></li>
+</ul></div>`},
+
+{n:329,c:"Core",p:"mid",
+q:`In-app purchases and monetization plumbing: what must be server-authoritative?`,
+qru:`Внутриигровые покупки и обвязка монетизации: что обязано быть серверным?`,
+a:`The client can never be the authority on entitlement. Correct flow: client initiates purchase through the store SDK → store returns a signed receipt → client sends the receipt to *your* server → server validates it with Apple/Google/Steam APIs, checks it has not been used before (replay protection), then grants the item in the authoritative player profile → client refreshes state from server. Client-side granting ("purchase succeeded, add 1000 gems locally") is trivially exploitable. Additional realities: restore-purchases flows for non-consumables are a store requirement; pending/deferred purchases (family approval, slow payment) mean grants can arrive minutes later, so the system must be asynchronous and idempotent; refunds and chargebacks must be able to revoke entitlements; and price/currency display must come from the store, never hardcoded. Test with sandbox accounts and simulate interruption at every step — the "app killed right after payment" path is where real revenue bugs live.`,
+aru:`Клиент никогда не может быть авторитетом по правам на контент. Корректный поток: клиент инициирует покупку через SDK стора → стор возвращает подписанный чек → клиент отправляет чек на *ваш* сервер → сервер валидирует его через API Apple/Google/Steam, проверяет, что чек не использовался (защита от повтора), и выдаёт предмет в авторитетном профиле игрока → клиент перезапрашивает состояние. Локальная выдача («покупка прошла, добавим 1000 кристаллов») ломается тривиально. Дополнительные реальности: восстановление покупок для неконсьюмируемых — требование сторов; отложенные покупки (родительское подтверждение, медленная оплата) означают, что выдача может прийти через минуты, поэтому система асинхронна и идемпотентна; возвраты и чарджбэки должны уметь отзывать права; цены и валюта отображаются из стора, а не хардкодятся. Тестировать в песочнице и симулировать прерывание на каждом шаге — реальные баги с деньгами живут на пути «приложение убили сразу после оплаты».`,
+d:`
+<h3>Простыми словами</h3>
+<p>Главное правило монетизации: клиент сообщает о покупке, но НЕ решает, что игрок получил. Между «стор сказал ок» и «игрок получил кристаллы» обязан стоять ваш сервер, который проверил чек у Apple/Google и записал выдачу у себя. Иначе покупка «взламывается» подменой ответа стора за пять минут.</p>
+<h3>Правильный поток</h3>
+<pre>1. Клиент → SDK стора: «купить pack_gems_1000»
+2. Стор → клиент: подписанный чек (receipt)
+3. Клиент → ВАШ сервер: вот чек
+4. Сервер → API Apple/Google: этот чек настоящий?
+5. Сервер: чек не использовался? → выдать в профиле
+   (идемпотентно! повторный тот же чек = не выдавать снова)
+6. Клиент: перезапросить состояние с сервера
+
+<span class="cm">// ✘ Никогда: OnPurchaseSuccess() { gems += 1000; Save(); }</span></pre>
+<h3>Реальность, о которой забывают</h3>
+<ul>
+<li><b>Прерывания.</b> Приложение убили между шагами 2 и 3 — чек остался в сторе неподтверждённым. При следующем запуске SDK его вернёт: обработка «незавершённых транзакций» на старте обязательна, иначе игрок заплатил и не получил.</li>
+<li><b>Отложенные покупки.</b> Родительское подтверждение может прийти через час — система должна быть асинхронной.</li>
+<li><b>Restore purchases</b> — требование сторов для неконсьюмируемых, без него отклонят ревью.</li>
+<li><b>Возвраты.</b> Игрок вернул деньги — права надо отозвать; серверный профиль это позволяет, локальный сейв — нет.</li>
+</ul>
+<h3>Что сказать на собеседовании</h3>
+<p>«Валидация чеков только на сервере, выдача — в авторитетном профиле, идемпотентно с защитой от повторного использования чека. Обязательна обработка незавершённых транзакций на старте: путь “убили приложение сразу после оплаты” — источник реальных потерь денег и жалоб. Плюс restore purchases, отложенные покупки, отзыв прав при возврате и цены из стора, а не хардкодом».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/Packages/com.unity.purchasing@4.12/manual/index.html" target="_blank">Unity IAP</a> <span>— SDK и обработка транзакций</span></li>
+<li><a href="https://developer.apple.com/documentation/appstoreserverapi" target="_blank">App Store Server API</a> <span>— серверная валидация чеков</span></li>
+</ul></div>`},
+
+{n:330,c:"Core",p:"mid",
+q:`Analytics-driven design: how do you instrument a game without polluting the code?`,
+qru:`Дизайн на данных: как инструментировать игру, не засоряя код?`,
+a:`The failure mode is <code>Analytics.Track("level_start")</code> calls sprinkled across gameplay classes — untyped, undiscoverable, impossible to refactor, and producing an event swamp analysts cannot query. Clean architecture: define an event schema as typed C# objects (one class per event with its parameters), keep a single analytics service behind an interface, and emit events from a thin layer that *subscribes* to existing gameplay events rather than calls injected into logic (the gameplay code should not know analytics exists). Practical rules: version the schema and review it like an API; standardize common dimensions (session id, build, device tier, cohort) centrally so every event carries them; sample high-frequency events; batch and queue offline; and honor consent gates before anything leaves the device. Close the loop with a debug overlay showing events as they fire — most analytics bugs are "the event never fired" or "fired twice", and they are invisible until someone looks.`,
+aru:`Провал выглядит как вызовы Analytics.Track("level_start"), рассыпанные по геймплейным классам: без типов, ненаходимые, нерефакторимые и порождающие болото событий, которое аналитик не может запросить. Чистая архитектура: схема событий как типизированные C#-объекты (класс на событие с его параметрами), единый сервис аналитики за интерфейсом и тонкий слой, который *подписывается* на существующие игровые события, вместо вызовов, вкраплённых в логику (геймплейный код не должен знать о существовании аналитики). Практические правила: версионировать схему и ревьюить как API; стандартные измерения (id сессии, билд, класс устройства, когорта) добавлять централизованно, чтобы они были в каждом событии; сэмплировать высокочастотные события; батчить и хранить очередь офлайн; уважать гейты согласия до любой отправки. Замкните петлю debug-оверлеем, показывающим события в момент отправки — большинство багов аналитики это «событие не пришло» или «пришло дважды», и они невидимы, пока никто не посмотрит.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Аналитика ломается не технически, а организационно: через полгода в проекте 300 событий с именами вроде «lvl_start», «level_started» и «LevelStart», половина без параметров, и аналитик не может ответить на простой вопрос. Лечится тем же, чем и код: типами, схемой и ревью.</p>
+<h3>Архитектура</h3>
+<pre><span class="cm">// ✘ Плохо: вызовы аналитики внутри геймплея</span>
+class Level { void Start() { Analytics.Track("lvl_start", ...); } }
+
+<span class="cm">// ✔ Хорошо: типизированные события + подписчик снаружи</span>
+readonly struct LevelStarted : IAnalyticsEvent {
+    public readonly int LevelId; public readonly int Attempt;
+}
+<span class="cm">// геймплей просто поднимает своё обычное событие,</span>
+<span class="cm">// а слой аналитики на него подписан:</span>
+_levels.OnStarted += l =&gt; _analytics.Send(new LevelStarted(l.Id, l.Try));
+<span class="cm">// геймплейный код НЕ знает про аналитику вообще</span></pre>
+<h3>Что делает данные пригодными</h3>
+<ul>
+<li><b>Общие измерения централизованно:</b> session id, версия билда, класс устройства, когорта — добавляются сервисом, а не руками в каждом событии.</li>
+<li><b>Воронки продуманы заранее:</b> «туториал шаг 1..N» бесполезен, если шаги не нумерованы одинаково.</li>
+<li><b>Отладочный оверлей:</b> список улетающих событий на экране в dev-билде — единственный способ поймать «не отправилось» и «отправилось дважды».</li>
+<li><b>Приватность:</b> гейт согласия, вычистка PII, региональная маршрутизация — до первой отправки, а не после письма от юристов.</li>
+</ul>
+<h3>Что сказать на собеседовании</h3>
+<p>«События — типизированная схема, ревьюируемая как API; отправка из слоя-подписчика, геймплей о ней не знает; общие измерения добавляются централизованно. Высокочастотное сэмплирую, всё батчу с офлайн-очередью, согласие проверяю до отправки. И держу debug-оверлей событий: “не пришло” и “пришло дважды” — самые частые баги аналитики, и они невидимы без него».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity.com/ugs/manual/analytics/manual/overview" target="_blank">Unity Analytics</a> <span>— сервис и модель событий</span></li>
+<li><a href="https://segment.com/academy/collecting-data/naming-conventions-for-clean-data/" target="_blank">Segment: naming conventions</a> <span>— как не получить болото событий</span></li>
+</ul></div>`},
+
+{n:331,c:"Core",p:"core",
+q:`Prefab workflow at team scale: variants, nesting, and what breaks.`,
+qru:`Работа с префабами на масштабе команды: варианты, вложенность и что ломается.`,
+a:`At scale the questions are ownership and blast radius. Practices that hold: a shallow base-prefab layer owned deliberately (changing it changes everything, so it needs review), variants for typed differences rather than per-instance overrides in scenes, nested prefabs for genuinely reusable sub-assemblies (a weapon mount used by ten characters), and prefabs — not scene objects — as the unit of content so scene files stay thin and mergeable. What breaks: restructuring a base prefab orphans variant overrides (they bind by file ID), so renames and hierarchy moves in base prefabs are semi-destructive operations; deeply nested chains make it unclear where a value comes from; and "apply all" from a tuned instance silently pushes local experiments to every user of the prefab. Guardrails: prefab ownership documented, validation that flags instances with excessive overrides, and review discipline on base-prefab changes.`,
+aru:`На масштабе вопрос в владении и радиусе поражения. Практики, которые держатся: неглубокий слой базовых префабов с явным владельцем (правка базы меняет всё — нужен ревью), варианты для типовых отличий вместо оверрайдов на инстансах в сценах, вложенные префабы для действительно переиспользуемых сборок (крепление оружия, общее для десяти персонажей), и префабы, а не объекты сцены, как единица контента — тогда файлы сцен остаются тонкими и мержатся. Что ломается: реструктуризация базового префаба осиротляет оверрайды вариантов (они привязаны по fileID), поэтому переименования и перемещения в иерархии базы — полудеструктивные операции; глубокие цепочки вложенности делают неочевидным, откуда пришло значение; а «apply all» с настроенного инстанса тихо отправляет локальные эксперименты всем пользователям префаба. Страховка: документированное владение префабами, валидация, помечающая инстансы с избытком оверрайдов, и дисциплина ревью на изменения базовых префабов.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Пока в проекте один человек, префабы — просто удобство. Когда людей двадцать, префаб становится общественным договором: правка базового префаба врага меняет игру у всех, а нажатие «Apply» с настроенного инстанса может незаметно разослать чей-то эксперимент по всему проекту.</p>
+<h3>Схема, которая масштабируется</h3>
+<pre>Enemy_Base (владелец: гейм-дизайн, правки через ревью)
+├─ Enemy_Grunt   (вариант: статы, скин)
+├─ Enemy_Sniper  (вариант: оружие, дальность)
+└─ Enemy_Boss    (вариант: масштаб, доп. компоненты)
+
+Сцены содержат ИНСТАНСЫ вариантов, а не уникальный контент.
+Инстанс с 40 оверрайдами = сигнал «нужен новый вариант».
+
+<span class="cm">// Опасные операции с базовым префабом:</span>
+<span class="cm">// переименование объектов внутри, перемещение в иерархии —</span>
+<span class="cm">// оверрайды вариантов привязаны по fileID и «сиротеют».</span>
+<span class="cm">// Делать осознанно, предупреждая команду, и проверять варианты.</span></pre>
+<h3>Что помогает жить</h3>
+<ul>
+<li><b>Валидатор оверрайдов:</b> редакторный скрипт, помечающий инстансы с числом оверрайдов выше порога — ранний сигнал структурной проблемы.</li>
+<li><b>Плоские базы:</b> чем глубже цепочка база→вариант→вариант→инстанс, тем сложнее ответить «откуда это значение».</li>
+<li><b>Prefab-first вёрстка уровней:</b> сцена = расстановка, контент в префабах — это же решает конфликты мержа (вопрос №307).</li>
+</ul>
+<h3>Что сказать на собеседовании</h3>
+<p>«Базовые префабы неглубокие и с владельцем: правки через ревью, потому что радиус поражения — весь проект. Типовые отличия — варианты, а не оверрайды на инстансах; инстанс с горой оверрайдов ловлю валидатором как сигнал сделать вариант. Помню, что реструктуризация базы осиротляет оверрайды по fileID — это полудеструктивная операция, а не рефакторинг».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/Manual/PrefabInstances.html" target="_blank">Unity: Prefab instances & overrides</a> <span>— как хранятся дельты</span></li>
+<li><a href="https://blog.unity.com/technology/prefabs-a-better-workflow" target="_blank">Unity Blog: Prefab workflows</a> <span>— замысел системы вариантов и вложенности</span></li>
+</ul></div>`},
+
+{n:332,c:"Core",p:"mid",
+q:`Multi-scene workflows: how do you organize a level across several scenes?`,
+qru:`Мультисценные воркфлоу: как организовать уровень из нескольких сцен?`,
+a:`Split by discipline and lifetime, not by geography alone: a persistent core scene (managers, camera rig, UI root), then per-area content split into sub-scenes — geometry/collision, lighting (lightmaps and probes live with the scene that owns them), gameplay entities, audio zones, and often a "designer scratch" scene. Benefits compound: parallel work without merge conflicts, selective loading (load lighting only when needed, drop gameplay scene on cutscene), faster iteration (open just the gameplay scene while testing), and clean memory boundaries. Costs and rules: cross-scene references are not serializable — resolve by registry/service at load, not by dragging objects across scenes; deterministic load order matters (managers before content); and the active scene determines where new objects and lighting settings go, which surprises people. Tooling helps: an editor window listing scene sets ("Level 3 = these five scenes") so nobody assembles them by hand.`,
+aru:`Делим по дисциплине и времени жизни, а не только по географии: персистентная core-сцена (менеджеры, риг камеры, рут UI), затем контент по областям в подсценах — геометрия и коллизии, свет (лайтмапы и пробы живут в той сцене, которой принадлежат), геймплейные сущности, аудио-зоны и часто «песочница дизайнера». Выгоды складываются: параллельная работа без конфликтов мержа, выборочная загрузка (свет грузим по необходимости, геймплейную сцену выгружаем на катсцену), быстрая итерация (открыть только геймплейную сцену для теста) и чистые границы памяти. Цена и правила: кросс-сценовые ссылки не сериализуются — разрешайте через реестр/сервис при загрузке, а не перетаскиванием объектов между сценами; порядок загрузки должен быть детерминированным (менеджеры до контента); активная сцена определяет, куда попадают новые объекты и настройки света, что многих удивляет. Помогает тулинг: редакторное окно с наборами сцен («Уровень 3 = вот эти пять»), чтобы никто не собирал их руками.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Одна сцена на уровень — это один файл, который правит вся команда: художник двигает камни, дизайнер расставляет врагов, светодел печёт свет — и все конфликтуют в мерже. Разделение на подсцены даёт каждому свой файл, а игра просто загружает их вместе.</p>
+<h3>Схема разделения</h3>
+<pre>Core.unity          — менеджеры, камера, UI-рут (не выгружается)
+Level3_Geometry     — художник (меши, коллизии)
+Level3_Lighting     — светодел (лайтмапы, пробы, volumes)
+Level3_Gameplay     — дизайнер (спавны, триггеры, логика)
+Level3_Audio        — звуковик (зоны, эмиттеры)
+
+<span class="cm">// Кросс-сценовые ссылки НЕ сериализуются — это фича:</span>
+<span class="cm">// нельзя перетащить объект из одной сцены в поле другой.</span>
+<span class="cm">// Решение — реестр/сервис при загрузке:</span>
+void OnEnable() =&gt; SpawnRegistry.Register(this);
+<span class="cm">// система находит участников через реестр, а не по ссылке</span></pre>
+<h3>Подводные камни</h3>
+<ul>
+<li><b>Активная сцена:</b> новые объекты и настройки освещения попадают в неё — при загрузке набора надо явно назначать активную, иначе свет уедет не туда.</li>
+<li><b>Порядок загрузки:</b> контент, полагающийся на менеджеры, обязан грузиться после них; это часть системы загрузки, а не удача.</li>
+<li><b>Сборка наборов:</b> «уровень = 5 сцен» должно быть данными (SO с набором), а не знанием в голове — плюс редакторная кнопка «открыть набор».</li>
+</ul>
+<h3>Что сказать на собеседовании</h3>
+<p>«Делю по дисциплинам и времени жизни: персистентный core плюс подсцены геометрии, света, геймплея и аудио — параллельная работа без конфликтов и выборочная загрузка. Кросс-сценовые ссылки решаю реестром при загрузке. Наборы сцен — данные с редакторной кнопкой открытия, активную сцену назначаю явно, порядок загрузки детерминирован».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/Manual/MultiSceneEditing.html" target="_blank">Multi-scene editing</a> <span>— базовые возможности</span></li>
+<li><a href="https://docs.unity3d.com/ScriptReference/SceneManagement.SceneManager.SetActiveScene.html" target="_blank">SetActiveScene</a> <span>— нюанс активной сцены</span></li>
+</ul></div>`},
+
+{n:333,c:"Core",p:"mid",
+q:`Editor vs runtime code: how do you keep them separated and why does it matter?`,
+qru:`Editor-код против рантайм-кода: как их разделять и почему это важно?`,
+a:`Editor code must never ship: it references <code>UnityEditor</code>, which does not exist in players — a stray reference is a build error at best and, when hidden behind reflection, a device-only crash at worst. Separation mechanisms in order of strength: an Editor assembly definition (code physically cannot be compiled into the player — the correct default), an <code>Editor/</code> folder (implicit rule, works but less explicit), and <code>#if UNITY_EDITOR</code> guards for the rare runtime class that needs a small editor-only member. Related discipline: <code>[Conditional("UNITY_EDITOR")]</code> strips *calls* to debug methods without touching call sites; editor-only fields on runtime components should be marked <code>[NonSerialized]</code> or wrapped in the define; and shared code that both worlds use belongs in a runtime assembly that the editor assembly references, never the other way. The architectural payoff is that build-breaking mistakes become compile errors in CI instead of surprises on device.`,
+aru:`Editor-код не должен попадать в билд: он ссылается на UnityEditor, которого в плеере нет — случайная ссылка это в лучшем случае ошибка сборки, а спрятанная за рефлексией — краш только на устройстве. Механизмы разделения по силе: Editor-сборка через asmdef (код физически не может попасть в плеер — правильный дефолт), папка Editor/ (неявное правило, работает, но менее явно) и охранники #if UNITY_EDITOR для редкого рантайм-класса, которому нужен маленький редакторный член. Смежная дисциплина: [Conditional("UNITY_EDITOR")] вырезает *вызовы* отладочных методов, не трогая точки вызова; editor-only поля на рантайм-компонентах помечаются [NonSerialized] или оборачиваются в дефайн; а общий код, нужный обоим мирам, живёт в рантайм-сборке, на которую ссылается редакторная, и никогда наоборот. Архитектурный выигрыш: ошибки, ломающие билд, становятся ошибками компиляции в CI, а не сюрпризами на устройстве.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Всё, что живёт в пространстве имён UnityEditor, существует только в редакторе. В собранной игре этого кода нет вообще. Поэтому одна строчка <code>using UnityEditor;</code> в рантайм-скрипте — и билд не собирается (или, что хуже, собирается, но падает на устройстве).</p>
+<h3>Три уровня защиты</h3>
+<pre><span class="cm">// 1. ЛУЧШЕ ВСЕГО: Editor-сборка (asmdef с платформой Editor)</span>
+Scripts/Editor/MyTools.asmdef  →  includePlatforms: ["Editor"]
+<span class="cm">// код физически не может попасть в плеер — проверяет компилятор</span>
+
+<span class="cm">// 2. Папка Editor/ — неявное правило Unity, работает без asmdef</span>
+
+<span class="cm">// 3. Для одиночных членов в рантайм-классе:</span>
+public class Spawner : MonoBehaviour {
+#if UNITY_EDITOR
+    public void EditorPreview() { /* только в редакторе */ }
+#endif
+}
+
+<span class="cm">// Бонус: вырезание ВЫЗОВОВ без правки точек вызова</span>
+[System.Diagnostics.Conditional("UNITY_EDITOR")]
+static void DebugDraw(...) { }
+<span class="cm">// в билде вызовы DebugDraw просто исчезают — и аргументы</span>
+<span class="cm">// к ним тоже не вычисляются (в отличие от if внутри метода)</span></pre>
+<h3>Направление зависимостей</h3>
+<p>Редакторная сборка ссылается на рантайм — никогда наоборот. Если рантайм-коду «нужно что-то из редактора», это признак, что логика лежит не там: вынесите общее в рантайм-сборку, а редакторное оставьте тонкой обёрткой над ним.</p>
+<h3>Что сказать на собеседовании</h3>
+<p>«Разделяю Editor-сборкой через asmdef — тогда попадание редакторного кода в билд невозможно физически, а не по договорённости. #if UNITY_EDITOR — для точечных членов, [Conditional] — чтобы вырезать вызовы вместе с вычислением аргументов. Зависимость всегда одна: редактор знает про рантайм, рантайм про редактор — никогда».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/Manual/SpecialFolders.html" target="_blank">Unity: Special folders</a> <span>— роль папки Editor</span></li>
+<li><a href="https://docs.unity3d.com/Manual/PlatformDependentCompilation.html" target="_blank">Platform dependent compilation</a> <span>— дефайны и условная компиляция</span></li>
+</ul></div>`},
+
+{n:334,c:"Core",p:"core",
+q:`How do you structure a Unity project directory for a team of 20+?`,
+qru:`Как организовать структуру папок Unity-проекта для команды 20+?`,
+a:`Two competing conventions: by type (Scripts/Textures/Prefabs) — Unity's default, fine for small projects, terrible at scale because one feature scatters across ten folders; and by feature/domain (Features/Combat/{Scripts,Prefabs,Art}) — everything for a system lives together, deletion is safe, ownership is obvious, and it maps naturally onto assembly definitions. Large teams typically use feature-first for game code plus type-based folders inside shared art libraries (where artists genuinely think in "all rock textures"). Additional structure that pays off: a top-level split between <code>_Project</code> (yours) and third-party/Plugins (theirs — never edit, so upgrades stay possible), Art source files (PSD/blend) kept outside Assets or in a clearly excluded folder, and a naming convention enforced by validation. The real test: can a newcomer find everything related to a feature in one place, and can a feature be deleted without hunting?`,
+aru:`Две конкурирующие конвенции: по типу (Scripts/Textures/Prefabs) — дефолт Unity, годится для маленьких проектов и ужасен на масштабе, потому что одна фича размазана по десяти папкам; и по фичам/доменам (Features/Combat/{Scripts,Prefabs,Art}) — всё для системы лежит вместе, удаление безопасно, владение очевидно, и это естественно ложится на asmdef. Большие команды обычно берут feature-first для игрового кода плюс папки по типам внутри общих арт-библиотек (там художники действительно мыслят категориями «все текстуры камня»). Ещё структура, которая окупается: верхнеуровневое разделение на _Project (ваше) и сторонние Plugins (чужое — не править, чтобы апгрейды оставались возможны), исходники арта (PSD/blend) вне Assets или в явно исключённой папке, и конвенция именования, поддержанная валидацией. Настоящая проверка: найдёт ли новичок всё по фиче в одном месте и можно ли удалить фичу, не устраивая охоту по проекту?`,
+d:`
+<h3>Простыми словами</h3>
+<p>Структура «Scripts / Prefabs / Materials» кажется логичной, пока проект маленький. На большом она означает: чтобы понять систему боя, надо открыть шесть папок, а чтобы её удалить — вспомнить, где что лежало. Структура по фичам ставит всё, что относится к бою, в одну папку — и вопросы «где это?» и «что сломается, если удалить?» получают ответ.</p>
+<h3>Рабочая раскладка</h3>
+<pre>Assets/
+  _Project/                 <span class="cm">// подчёркивание — всегда сверху списка</span>
+    Features/
+      Combat/    { Scripts/, Prefabs/, VFX/, Combat.asmdef }
+      Inventory/ { Scripts/, UI/, Data/, Inventory.asmdef }
+      Progression/
+    Core/                   <span class="cm">// общее: сервисы, утилиты, базовые типы</span>
+    Art/                    <span class="cm">// общие библиотеки — тут ПО ТИПАМ логично</span>
+      Materials/, Textures/, Models/
+    Scenes/  { Core.unity, Levels/ }
+  Plugins/                  <span class="cm">// чужое — НЕ ПРАВИТЬ (иначе апгрейд = боль)</span>
+  ThirdParty/
+
+Вне Assets/: ArtSource/ (PSD, blend, wav-исходники)</pre>
+<h3>Почему это про архитектуру, а не про порядок</h3>
+<p>Папки по фичам естественно ложатся на asmdef (вопрос №11): папка = сборка = граница зависимостей, проверяемая компилятором. Тогда структура папок перестаёт быть вкусовщиной и становится архитектурой: невозможно «случайно» позвать инвентарь из боя, если сборка боя на него не ссылается.</p>
+<h3>Что сказать на собеседовании</h3>
+<p>«Feature-first для игрового кода: папка фичи = asmdef = граница зависимостей; по типам оставляю только общие арт-библиотеки, где так думают художники. Чужой код изолирован в Plugins и не правится ради возможности апгрейда, исходники арта вне Assets. Критерий качества структуры: новичок находит фичу в одном месте, а удаление фичи не превращается в расследование».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://unity.com/how-to/organizing-your-project" target="_blank">Unity: Organizing your project</a> <span>— официальные рекомендации и конвенции</span></li>
+<li><a href="https://github.com/justinwasilenko/Unity-Style-Guide" target="_blank">Unity Style Guide</a> <span>— популярный community-стандарт именования и структуры</span></li>
+</ul></div>`},
+
+{n:335,c:"Core",p:"mid",
+q:`Package management: UPM, custom packages, and third-party asset hygiene.`,
+qru:`Управление пакетами: UPM, свои пакеты и гигиена сторонних ассетов.`,
+a:`UPM handles Unity packages, Git URLs, and local paths, with <code>manifest.json</code> pinning versions and a lock file for reproducibility — pin exact versions in production, never float on ranges you did not choose. Extracting your own shared code into local/embedded packages (a company UI library, a netcode wrapper) buys real separation: versioned, testable, reusable across projects, with explicit dependencies — worth doing once a system stabilizes and more than one project needs it. Third-party hygiene is where projects rot: asset store packages that dump into <code>Assets/</code> root, edit-in-place modifications that vanish on upgrade, duplicated dependencies (three copies of DOTween-like libraries), and abandoned assets pinned to an old Unity version. Practices: isolate third-party code, never edit it (wrap or fork deliberately with the fork documented), audit licences, and evaluate maintenance status before adopting — an unmaintained core dependency becomes your code the day Unity changes.`,
+aru:`UPM работает с пакетами Unity, Git-URL и локальными путями; manifest.json фиксирует версии, lock-файл даёт воспроизводимость — в продакшене пиньте точные версии и не плавайте по диапазонам, которых не выбирали. Вынесение своего общего кода в локальные/встроенные пакеты (корпоративная UI-библиотека, обёртка над неткодом) даёт настоящее разделение: версионирование, тесты, переиспользование между проектами, явные зависимости — стоит делать, когда система устоялась и нужна больше чем одному проекту. Гниение начинается со сторонних ассетов: пакеты из Asset Store, вываливающиеся в корень Assets/, правки «на месте», исчезающие при апгрейде, дублирующиеся зависимости (три копии библиотек в духе DOTween) и заброшенные ассеты, привязанные к старой версии Unity. Практики: изолировать сторонний код, не править его (оборачивать или форкать осознанно с документированием форка), проверять лицензии и оценивать поддерживаемость до внедрения — незаброшенная зависимость становится вашим кодом в тот день, когда Unity что-то изменит.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Пакеты — это способ не тащить всё в одну кучу: код лежит отдельно, версия зафиксирована, зависимости объявлены. Проблема обычно не в UPM, а в том, что рядом живут ассеты из стора, которые вываливаются прямо в Assets/, кто-то их правит «на месте», и через год апгрейд превращается в археологию.</p>
+<h3>Практики</h3>
+<pre><span class="cm">// manifest.json — точные версии, не диапазоны</span>
+"com.unity.render-pipelines.universal": "17.0.3"
+<span class="cm">// плюс packages-lock.json в репозиторий — воспроизводимость</span>
+
+<span class="cm">// Свои пакеты — когда система устоялась:</span>
+Packages/com.mycompany.ui/       <span class="cm">// embedded package</span>
+  package.json, Runtime/, Editor/, Tests/
+<span class="cm">// версионируется, тестируется, переезжает в другой проект</span>
+
+<span class="cm">// Сторонние: изолировать и НЕ ПРАВИТЬ</span>
+Assets/ThirdParty/CoolAsset/
+<span class="cm">// нужна правка? обёртка сверху, либо осознанный форк</span>
+<span class="cm">// с записью в FORKS.md: что изменено и почему</span></pre>
+<h3>Чеклист перед внедрением ассета</h3>
+<p>Когда последнее обновление? Поддерживает целевую версию Unity? Работает под IL2CPP (см. вопрос №180 — Expression.Compile внутри = мина)? Лицензия совместима с релизом? Сколько он тянет зависимостей и не дублируют ли они уже имеющееся? Ответ «не знаю» на любой из этих — не аргумент против, но повод заложить время на риск.</p>
+<h3>Что сказать на собеседовании</h3>
+<p>«Точные версии в manifest плюс lock-файл в репозитории; своё общее выношу в embedded-пакеты с тестами, когда оно устоялось и нужно второму проекту. Сторонние изолирую и не правлю — правка на месте исчезает при апгрейде; нужна доработка — обёртка или задокументированный форк. Перед внедрением проверяю поддержку, IL2CPP-совместимость и лицензию».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/Manual/upm-ui.html" target="_blank">Unity Package Manager</a> <span>— manifest, источники, версии</span></li>
+<li><a href="https://docs.unity3d.com/Manual/CustomPackages.html" target="_blank">Custom packages</a> <span>— как сделать свой пакет</span></li>
+</ul></div>`},
+
+{n:336,c:"Core",p:"core",
+q:`Dependency injection with VContainer/Zenject: scopes, lifetimes, and Unity specifics.`,
+qru:`DI через VContainer/Zenject: скоупы, времена жизни и специфика Unity.`,
+a:`A container resolves object graphs from registrations instead of manual wiring. Unity specifics that matter: scopes map to lifetimes — a project/root scope for services that outlive scenes (save system, audio, network), a scene scope for per-level systems, and sometimes a per-entity scope for complex actors; MonoBehaviours cannot use constructor injection (Unity creates them), so containers offer method/field injection and factories that instantiate prefabs with dependencies filled. Registration should be explicit and grouped by feature (a <code>CombatInstaller</code>), not one giant installer nobody understands. Performance and AOT: VContainer is preferred over Zenject today for lower allocation and faster resolve, and both must avoid runtime code generation paths under IL2CPP — check the AOT mode. Anti-patterns: injecting the container itself (service locator in disguise), resolving in Update, and registering everything as singleton because it is easy — lifetime is a design decision, not a default.`,
+aru:`Контейнер строит граф объектов из регистраций вместо ручной проводки. Специфика Unity: скоупы соответствуют временам жизни — root/project scope для сервисов, переживающих сцены (сейвы, аудио, сеть), scene scope для систем уровня, иногда скоуп на сущность для сложных акторов; MonoBehaviour не может получить зависимости через конструктор (их создаёт Unity), поэтому контейнеры дают инъекцию в методы/поля и фабрики, инстанцирующие префабы с заполненными зависимостями. Регистрации должны быть явными и сгруппированными по фичам (CombatInstaller), а не одним гигантским инсталлером, который никто не понимает. Производительность и AOT: сегодня предпочитают VContainer вместо Zenject за меньшие аллокации и более быстрый resolve, и оба должны избегать путей с рантайм-кодогенерацией под IL2CPP — проверяйте AOT-режим. Антипаттерны: инъекция самого контейнера (замаскированный service locator), resolve в Update и регистрация всего синглтоном, потому что так проще — время жизни это проектное решение, а не значение по умолчанию.`,
+d:`
+<h3>Простыми словами</h3>
+<p>DI-контейнер отвечает на вопрос «кто создаёт объекты и раздаёт им зависимости». Вместо того чтобы каждый класс сам искал нужные сервисы (через синглтоны и Find), контейнер собирает граф при старте: «системе боя нужны аудио и статистика — вот они». Код становится честным: зависимости видны в сигнатурах.</p>
+<h3>Скоупы = времена жизни</h3>
+<pre>RootScope (переживает сцены):
+  SaveService, AudioService, NetworkClient, Analytics
+
+SceneScope (живёт с уровнем):
+  EnemySpawner, LevelTimer, ObjectivesSystem
+  <span class="cm">// при выгрузке сцены — уничтожаются вместе с ней</span>
+
+<span class="cm">// MonoBehaviour: конструктор недоступен → инъекция в метод</span>
+public class Player : MonoBehaviour {
+    IAudioService _audio;
+    [Inject] void Construct(IAudioService audio) =&gt; _audio = audio;
+}
+
+<span class="cm">// Спавн префабов с зависимостями — через фабрику контейнера,</span>
+<span class="cm">// а не Instantiate + ручной поиск сервисов</span></pre>
+<h3>Когда DI лишний</h3>
+<p>Честно: на проекте из десяти скриптов контейнер — оверинжиниринг, composition root руками (вопрос №30) читается лучше. DI окупается, когда систем десятки, нужны разные времена жизни, тесты без Play Mode и подмена реализаций (фейковый сервер, локальные сейвы вместо облачных). Признак, что пора: в проекте пять синглтонов и споры о порядке их инициализации.</p>
+<h3>Что сказать на собеседовании</h3>
+<p>«Скоупы отражают времена жизни: root для переживающих сцены сервисов, scene для систем уровня. MonoBehaviour получают зависимости методом, префабы — через фабрики контейнера. Регистрации группирую по фичам. Беру VContainer за перф и AOT-дружелюбие. Антипаттерны знаю: инъекция контейнера, resolve в Update и всё синглтоном по умолчанию — время жизни надо выбирать осознанно».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://vcontainer.hadashikick.jp/" target="_blank">VContainer</a> <span>— скоупы, инсталлеры, фабрики, производительность</span></li>
+<li><a href="https://github.com/modesttree/Zenject" target="_blank">Zenject/Extenject</a> <span>— исторический стандарт, полезен для сравнения концепций</span></li>
+</ul></div>`},
+
+{n:337,c:"Core",p:"mid",
+q:`Command pattern for undo, replays, and turn-based logic.`,
+qru:`Паттерн Command для undo, реплеев и пошаговой логики.`,
+a:`Encapsulating an action as an object (with Execute and optionally Undo) buys several things at once: undo/redo stacks for editors and puzzle games, deterministic replays (record commands, not results), network transport (a command is exactly what you send to the server), input queuing, and testability (assert on emitted commands rather than side effects). Design points: commands must be data, not closures over live state — store what is needed to re-execute (entity ids, values), or replays break when the world differs; undo requires either inverse operations or state snapshots (memento) — snapshots are simpler but heavier; and for turn-based games the command log *is* the game state history, which makes save/load and spectating nearly free. Where it does not fit: high-frequency continuous action (per-frame movement of thousands of entities) — the object overhead and log growth exceed the benefit; there, record input streams instead.`,
+aru:`Инкапсуляция действия в объект (с Execute и опционально Undo) даёт сразу несколько вещей: стеки undo/redo для редакторов и головоломок, детерминированные реплеи (записываем команды, а не результаты), сетевой транспорт (команда — это ровно то, что отправляется на сервер), очередь ввода и тестируемость (проверяем испущенные команды, а не побочные эффекты). Проектные моменты: команды должны быть данными, а не замыканиями над живым состоянием — храните то, что нужно для повторного выполнения (id сущностей, значения), иначе реплей ломается при другом состоянии мира; undo требует либо обратных операций, либо снимков состояния (memento) — снимки проще, но тяжелее; а в пошаговых играх журнал команд *и есть* история состояния, что делает сохранение, загрузку и наблюдение почти бесплатными. Где не подходит: высокочастотное непрерывное действие (покадровое движение тысяч сущностей) — накладные расходы объектов и рост журнала перевешивают пользу; там записывают потоки ввода.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Обычно код делает действие сразу: <code>unit.Move(target)</code>. Паттерн Command говорит: сначала создай ОБЪЕКТ «приказ переместиться», а потом выполни его. Кажется лишним шагом — но объект можно сохранить, отправить по сети, отменить, переиграть и проверить в тесте. Одно изменение открывает пять возможностей.</p>
+<h3>Что это даёт</h3>
+<pre>interface ICommand { void Execute(); void Undo(); }
+
+<span class="cm">// Undo/redo: два стека — выполненные и отменённые</span>
+_done.Push(cmd); cmd.Execute();
+<span class="cm">// Ctrl+Z: _done.Pop().Undo() → в _undone</span>
+
+<span class="cm">// Реплей: пишем КОМАНДЫ, а не результаты</span>
+<span class="cm">// 3 часа игры = список команд на пару килобайт</span>
+
+<span class="cm">// Сеть: команда — это и есть пакет</span>
+<span class="cm">// клиент отправляет намерение, сервер валидирует и применяет</span>
+
+<span class="cm">// ВАЖНО: команда — ДАННЫЕ, не замыкание!</span>
+class MoveCmd { int unitId; Vector2Int to; }   <span class="cm">// ✔ переиграется</span>
+class MoveCmd { Action _do; }                   <span class="cm">// ✘ мертво для реплея</span></pre>
+<h3>Границы применимости</h3>
+<p>Пошаговые игры, редакторы, головоломки, стратегии — идеально: журнал команд становится историей игры, и сохранение сводится к сохранению журнала. Экшен с покадровым движением — плохо: тысячи объектов-команд в секунду не окупаются, там пишут поток ВВОДА (как в rollback-неткоде, вопрос №290) и переигрывают симуляцию.</p>
+<h3>Что сказать на собеседовании</h3>
+<p>«Команда как объект-данные даёт undo, реплей, сетевой транспорт и тестируемость одним решением. Ключевое требование — команда должна быть данными, а не замыканием, иначе переигрывание невозможно. Undo — обратными операциями или снимками. В пошаговых играх журнал команд и есть состояние. В экшене вместо команд пишу поток ввода — объекты на кадр не окупаются».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://gameprogrammingpatterns.com/command.html" target="_blank">Game Programming Patterns: Command</a> <span>— каноническая глава с игровыми примерами</span></li>
+<li><a href="https://docs.unity3d.com/ScriptReference/Undo.html" target="_blank">Unity Undo API</a> <span>— как это устроено в редакторе Unity</span></li>
+</ul></div>`},
+
+{n:338,c:"Core",p:"mid",
+q:`Observer patterns in practice: events, reactive streams, and dirty flags.`,
+qru:`Паттерны наблюдателя на практике: события, реактивные потоки и dirty-флаги.`,
+a:`Three mechanisms with different sweet spots. Plain events/observers: discrete, low-frequency facts (player died, item picked up) — cheap and explicit, with the unsubscribe discipline discussed earlier. Reactive streams (R3/UniRx): observables with operators (throttle, distinct, combineLatest, takeUntil) — excellent for input, UI binding, and time-based composition where hand-written state machines get messy; costs are allocation, a learning curve, and stack traces that stop being readable. Dirty flags: instead of notifying on every change, mark dirty and recompute once before use — the right answer for values changing many times per frame with a single consumer (transform matrices, UI layouts, cached stat totals recomputed after N modifiers applied). The senior framing is choosing by *frequency and consumer count*: many observers and rare events → events; complex temporal composition → streams; high-frequency writes with one reader → dirty flag and pull.`,
+aru:`Три механизма с разными зонами применения. Обычные события/наблюдатели: дискретные редкие факты (игрок умер, предмет подобран) — дёшево и явно, с дисциплиной отписки из предыдущих вопросов. Реактивные потоки (R3/UniRx): observable с операторами (throttle, distinct, combineLatest, takeUntil) — отлично для ввода, биндинга UI и композиции по времени, где рукописные стейт-машины становятся кашей; цена — аллокации, кривая обучения и нечитаемые стек-трейсы. Dirty-флаги: вместо уведомления на каждое изменение помечаем «грязным» и пересчитываем один раз перед использованием — правильный ответ для значений, меняющихся много раз за кадр при одном потребителе (матрицы трансформов, вёрстка UI, кэш суммы статов после применения N модификаторов). Сеньорская рамка — выбор по *частоте и числу потребителей*: много наблюдателей и редкие события → события; сложная композиция по времени → потоки; частые записи с одним читателем → dirty-флаг и вытягивание по требованию.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Три способа сказать «что-то изменилось». Событие: кричу всем подписчикам сразу. Реактивный поток: то же, но с конвейером обработки (объединить, отфильтровать, подождать). Dirty-флаг: не кричу вообще — просто ставлю галочку «устарело», а тот, кому надо, пересчитает при следующем обращении.</p>
+<h3>Когда что</h3>
+<pre><span class="cm">// СОБЫТИЕ: редкий дискретный факт, много слушателей</span>
+event Action&lt;Enemy&gt; OnEnemyKilled;   <span class="cm">// UI, звук, квесты, статистика</span>
+
+<span class="cm">// ПОТОК: композиция по времени и вводу</span>
+input.OnClick
+     .Throttle(0.3f)             <span class="cm">// антидребезг</span>
+     .Where(_ =&gt; canShoot)
+     .TakeUntil(this.OnDestroy())  <span class="cm">// авто-отписка!</span>
+     .Subscribe(_ =&gt; Shoot());
+<span class="cm">// руками это стейт-машина на 30 строк с таймерами</span>
+
+<span class="cm">// DIRTY-ФЛАГ: частые записи, один потребитель</span>
+void AddModifier(...) { _mods.Add(m); _dirty = true; }  <span class="cm">// дёшево</span>
+public float Total { get { if (_dirty) Recalc(); return _total; } }
+<span class="cm">// 50 модификаторов за кадр = 1 пересчёт, а не 50 уведомлений</span></pre>
+<h3>Почему dirty-флаг недооценён</h3>
+<p>Это тот же приём, которым внутри работает сам Unity: transform помечается грязным при записи, а матрица считается при чтении (вопрос №27); канвас помечается грязным и перестраивается один раз перед рендером (вопрос №248). Если вы понимаете dirty-флаги, вы понимаете, почему движок ведёт себя именно так, — и это ровно тот уровень ответа, который отличает сеньора.</p>
+<h3>Что сказать на собеседовании</h3>
+<p>«Выбираю по частоте и числу потребителей: редкие факты с многими слушателями — события; композиция по времени и вводу — реактивные потоки с авто-отпиской через TakeUntil(OnDestroy); частые изменения с одним читателем — dirty-флаг с ленивым пересчётом. Последнее — то, как устроены сами transform и canvas в Unity, поэтому паттерн заодно объясняет поведение движка».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://gameprogrammingpatterns.com/dirty-flag.html" target="_blank">Patterns: Dirty Flag</a> <span>— недооценённая глава, читается за 10 минут</span></li>
+<li><a href="https://github.com/Cysharp/R3" target="_blank">R3 (наследник UniRx)</a> <span>— современные реактивные потоки для Unity</span></li>
+</ul></div>`},
+
+{n:339,c:"Core",p:"mid",
+q:`Working with third-party SDKs (ads, attribution, social): integration architecture.`,
+qru:`Работа со сторонними SDK (реклама, атрибуция, соцфункции): архитектура интеграции.`,
+a:`SDKs are the least controllable code in your project: they update on their schedule, break on OS updates, add native dependencies that fight each other (Gradle/CocoaPods conflicts are a rite of passage), and often call back on arbitrary threads. Architecture that survives: wrap every SDK behind your own interface (<code>IAdService</code>, <code>IAnalyticsService</code>) so swapping vendors is a class change, not a project-wide refactor — and vendors *do* get swapped for revenue reasons. Add a no-op/fake implementation for editor and tests so development never depends on network SDKs, marshal all callbacks to the main thread at the boundary, and guard every entry point defensively (SDKs throw, hang, and return nulls that their docs deny). Operational concerns: initialization order and consent (GDPR/ATT must gate initialization, not just tracking), size impact (each SDK adds MBs and methods), and a documented upgrade cadence — SDK upgrades break builds, so do them early in a sprint, never the day before a release.`,
+aru:`SDK — наименее контролируемый код в проекте: обновляются по своему расписанию, ломаются на обновлениях ОС, тянут нативные зависимости, конфликтующие между собой (конфликты Gradle/CocoaPods — обряд посвящения), и часто зовут коллбэки из произвольных потоков. Архитектура, которая выживает: обернуть каждый SDK в собственный интерфейс (IAdService, IAnalyticsService), чтобы смена вендора была заменой класса, а не рефакторингом всего проекта — а вендоров *меняют*, по коммерческим причинам. Добавьте no-op/фейковую реализацию для редактора и тестов, чтобы разработка не зависела от сетевых SDK, маршализуйте все коллбэки в главный поток на границе и защищайте каждую точку входа (SDK бросают, зависают и возвращают null, который их документация отрицает). Операционное: порядок инициализации и согласие (GDPR/ATT должны гейтить инициализацию, а не только трекинг), влияние на размер (каждый SDK это мегабайты и методы) и задокументированная частота апгрейдов — апгрейды SDK ломают сборку, поэтому делайте их в начале спринта, а не накануне релиза.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Сторонний SDK — это чужой код с правами вашего процесса, который вы не можете исправить и который обновляется, когда захочет вендор. Единственная защита — не давать ему растекаться по проекту: он живёт за вашим интерфейсом, и вся игра знает только про этот интерфейс.</p>
+<h3>Обёртка как обязательное правило</h3>
+<pre><span class="cm">// Ваш интерфейс — то, что видит игра:</span>
+interface IAdService {
+    UniTask&lt;AdResult&gt; ShowRewarded(string placement, CancellationToken ct);
+}
+
+<span class="cm">// Реализации:</span>
+class AppLovinAdService : IAdService { ... }  <span class="cm">// прод</span>
+class FakeAdService : IAdService { ... }      <span class="cm">// редактор/тесты:</span>
+   <span class="cm">// «показали, ждём 2 сек, вернули success» — разработка</span>
+   <span class="cm">// не зависит от сети и от того, есть ли инвентарь рекламы</span>
+
+<span class="cm">// На границе: коллбэки SDK приходят откуда угодно →</span>
+<span class="cm">// маршалим в главный поток и оборачиваем в try/catch,</span>
+<span class="cm">// потому что SDK бросают исключения из недр натива</span></pre>
+<h3>Операционные реалии</h3>
+<ul>
+<li><b>Согласие раньше инициализации:</b> GDPR/ATT — это гейт на запуск SDK, а не галочка «не трекать»; ревью сторов это проверяет.</li>
+<li><b>Конфликты зависимостей:</b> два SDK тянут разные версии одной нативной библиотеки — Gradle/CocoaPods война. Отсюда правило: чем меньше SDK, тем лучше, каждый должен оправдывать своё существование деньгами.</li>
+<li><b>Апгрейды — в начало спринта.</b> Обновление SDK ломает сборку в 30% случаев; делать это накануне релиза — гарантированный перенос даты.</li>
+</ul>
+<h3>Что сказать на собеседовании</h3>
+<p>«Каждый SDK за собственным интерфейсом плюс фейковая реализация для редактора и тестов — смена вендора становится заменой класса, а разработка не зависит от сети. Коллбэки маршалю в главный поток и защищаю try/catch на границе. Согласие гейтит инициализацию, а не только трекинг. Апгрейды SDK планирую в начале спринта — они регулярно ломают нативную сборку».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://developers.google.com/admob/unity/quick-start" target="_blank">AdMob Unity integration</a> <span>— типовой пример SDK со всеми его особенностями</span></li>
+<li><a href="https://developer.apple.com/documentation/apptrackingtransparency" target="_blank">Apple ATT</a> <span>— согласие как условие инициализации</span></li>
+</ul></div>`},
+
+{n:340,c:"Core",p:"core",
+q:`Cross-platform architecture: how do you handle platform differences cleanly?`,
+qru:`Кросс-платформенная архитектура: как чисто обрабатывать различия платформ?`,
+a:`Differences come in layers: capabilities (touch vs gamepad vs mouse, screen safe areas, haptics), services (achievements, cloud saves, IAP, ads differ per store), performance tiers (a Switch and an RTX PC need different quality settings and even different content), and store requirements (certification rules, privacy prompts, mandatory features like restore purchases). Clean handling: define capability interfaces implemented per platform and selected at composition root — <code>IPlatformServices</code> with Steam/Console/Mobile implementations — rather than <code>#if</code> spaghetti inside gameplay; keep conditional compilation at the edges (a single platform assembly per target) so gameplay code has zero platform defines; drive quality by data (tier assets/settings selected at runtime from a device-tier database) rather than by branching logic. Practical additions: a platform abstraction for input prompts and text (button glyphs, terminology differs by cert), and CI lanes building every target so a platform-specific compile break is caught the day it lands, not at submission.`,
+aru:`Различия идут слоями: возможности (тач против геймпада и мыши, safe area, тактильная отдача), сервисы (достижения, облачные сейвы, IAP, реклама различаются по сторам), уровни производительности (Switch и RTX-PC требуют разных настроек качества и даже разного контента) и требования сторов (правила сертификации, промпты приватности, обязательные функции вроде restore purchases). Чистая обработка: интерфейсы возможностей с платформенными реализациями, выбираемыми в composition root — IPlatformServices с реализациями Steam/консоль/мобилки, — вместо #if-спагетти внутри геймплея; условная компиляция держится на краях (по одной платформенной сборке на цель), чтобы в геймплейном коде не было ни одного платформенного дефайна; качество задаётся данными (наборы ассетов и настроек выбираются в рантайме по базе классов устройств), а не ветвлением логики. Практические дополнения: абстракция для подсказок и текста (глифы кнопок и терминология различаются по требованиям сертификации) и полосы CI, собирающие все цели, чтобы платформенная поломка компиляции ловилась в день появления, а не при сабмите.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Наивный подход к платформам — <code>#if UNITY_IOS ... #elif UNITY_ANDROID</code> прямо в геймплейном коде. Через год таких мест сотни, и никто не может сказать, что делает игра на конкретной платформе. Взрослый подход: платформенные различия живут в отдельных реализациях одного интерфейса, а геймплей не знает, где он запущен.</p>
+<h3>Схема</h3>
+<pre><span class="cm">// Геймплей знает только интерфейс:</span>
+interface IPlatformServices {
+    UniTask&lt;bool&gt; UnlockAchievement(string id);
+    UniTask SaveToCloud(byte[] data);
+    bool SupportsHaptics { get; }
+}
+
+<span class="cm">// Реализации — в платформенных сборках:</span>
+SteamPlatformServices / GooglePlayServices / ConsoleServices
+NullPlatformServices  <span class="cm">// редактор и тесты</span>
+
+<span class="cm">// Выбор — один раз в composition root:</span>
+#if UNITY_STANDALONE
+    services = new SteamPlatformServices();
+#endif
+<span class="cm">// ЭТО единственное место с дефайном на всю игру</span>
+
+<span class="cm">// Качество — данными, не кодом:</span>
+<span class="cm">// DeviceTierDatabase → tier(low/mid/high) → набор настроек</span></pre>
+<h3>Про CI</h3>
+<p>Кросс-платформенность ломается тихо: код, не компилирующийся под iOS, живёт в ветке неделями, пока кто-то не соберёт билд. Полосы CI на каждую цель (даже просто компиляция) превращают это в красный билд в день коммита. Для консолей добавьте ночные полные сборки — там ещё и сертификационные проверки.</p>
+<h3>Что сказать на собеседовании</h3>
+<p>«Различия платформ — за интерфейсами возможностей с реализациями на платформу, выбор в composition root: дефайны живут на краях, в геймплее их нет вообще. Качество задаю данными через классы устройств, а не ветвлением. И полосы CI на каждую цель — иначе платформенная поломка обнаруживается при сабмите, когда исправлять дороже всего».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/Manual/PlatformDependentCompilation.html" target="_blank">Platform dependent compilation</a> <span>— дефайны и их правильное место</span></li>
+<li><a href="https://docs.unity3d.com/Manual/class-QualitySettings.html" target="_blank">Quality Settings</a> <span>— уровни качества как данные</span></li>
+</ul></div>`},
 ];
 
 /* ---------- Deep dive content (RU, plain language) ---------- */
@@ -4944,17 +5936,48 @@ void OnSceneGUI() {
 };
 for(const q of Q){ if(D[q.n]) q.d = D[q.n]; }
 
+/* ---------- Priority: важные / средние ---------- */
+const CORE_Q=new Set([
+ 1,2,3,4,5,6,7,9,10,11,12,15,16,17,20,21,                                  /* C# базовый */
+ 133,134,136,141,142,145,148,150,165,166,168,170,171,172,173,174,176,181,182,183,185,186,189,190,191,192,201,202,207,209, /* C# глубокий */
+ 23,24,26,28,29,30,32,34,35,36,                                            /* Core */
+ 38,39,40,42,43,216,217,221,225,                                           /* Physics */
+ 44,45,46,230,231,232,233,234,239,                                         /* Animation */
+ 47,48,49,50,247,248,249,250,251,252,                                      /* UI */
+ 51,52,53,54,56,58,59,60,61,70,73,                                         /* Perf */
+ 63,64,65,66,68,69,265,266,267,269,277,                                    /* Memory */
+ 76,77,78,79,80,82,83,84,88,101,102,103,104,106,111,112,125,126,129,131,132, /* Rendering */
+ 94,95,278,279,280,281,282,283,284,285,288,294,295,                        /* Netcode */
+ 96,97,98,99,100,296,297,300,301,302,305,310                               /* Tooling */
+]);
+for(const q of Q){ if(!q.p) q.p = CORE_Q.has(q.n) ? 'core' : 'mid'; }
+
 const list=document.getElementById('list'), catsEl=document.getElementById('cats'),
+      prioEl=document.getElementById('prios'),
       searchEl=document.getElementById('search'), metaEl=document.getElementById('meta');
-let activeCat='All', term='';
+let activeCat='All', activePrio='All', term='';
 
 const cats=['All',...[...new Set(Q.map(x=>x.c))]];
+function catCount(c){return Q.filter(x=>(c==='All'||x.c===c)&&(activePrio==='All'||x.p===activePrio)).length;}
 cats.forEach(c=>{
   const b=document.createElement('button');
-  b.textContent=c+(c==='All'?' ('+Q.length+')':' ('+Q.filter(x=>x.c===c).length+')');
+  b.dataset.cat=c;
+  b.textContent=c+' ('+catCount(c)+')';
   if(c==='All')b.className='active';
   b.onclick=()=>{activeCat=c;[...catsEl.children].forEach(n=>n.classList.remove('active'));b.classList.add('active');render();};
   catsEl.appendChild(b);
+});
+[['All','Все'],['core','⭐ Важные'],['mid','Средние']].forEach(([key,label])=>{
+  const b=document.createElement('button');
+  b.textContent=label+' ('+(key==='All'?Q.length:Q.filter(x=>x.p===key).length)+')';
+  if(key==='All')b.className='active';
+  b.onclick=()=>{
+    activePrio=key;
+    [...prioEl.children].forEach(n=>n.classList.remove('active'));b.classList.add('active');
+    [...catsEl.children].forEach(n=>{n.textContent=n.dataset.cat+' ('+catCount(n.dataset.cat)+')';});
+    render();
+  };
+  prioEl.appendChild(b);
 });
 
 function esc(s){return s.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));}
@@ -4967,6 +5990,7 @@ function render(){
   const t=term.trim().toLowerCase();
   const items=Q.filter(x=>{
     if(activeCat!=='All'&&x.c!==activeCat)return false;
+    if(activePrio!=='All'&&x.p!==activePrio)return false;
     if(!t)return true;
     return (x.q+x.qru+x.a+x.aru+x.c).toLowerCase().includes(t);
   });
@@ -4979,7 +6003,7 @@ function render(){
         <div class="qt">
           <div class="en">${hl(esc(x.q),t)}</div>
           <div class="ru">${hl(esc(x.qru),t)}</div>
-          <span class="tag">${x.c}</span>
+          <span class="tag">${x.c}</span>${x.p==='core'?'<span class="tag" style="color:#3fb950;border-color:rgba(63,185,80,.4);margin-left:5px">⭐ важный</span>':''}
         </div>
         <div class="chev">&#9654;</div>
       </div>

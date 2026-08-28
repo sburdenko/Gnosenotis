@@ -22,10 +22,11 @@ export function pluralizeEn(n: number, one: string, many: string): string {
 export interface Dictionary {
   siteEyebrow: string;
   siteTitle: string;
-  siteSubtitle: string;
+  /** Takes the live question count so this never goes stale when the dataset grows. */
+  siteSubtitle: (questionCount: number) => string;
   languageToggleLabel: string;
   tabs: { questions: string; resources: string; leetcode: string };
-  tabSub: { questions: string; resources: string; leetcode: string };
+  tabSub: { questions: (n: number) => string; resources: string; leetcode: string };
   searchPlaceholder: { questions: string; resources: string; leetcode: string };
   cardCount: (n: number) => string;
   expandAll: string;
@@ -55,10 +56,14 @@ export const dictionaries: Record<Lang, Dictionary> = {
   en: {
     siteEyebrow: "Card catalog",
     siteTitle: "Unity Interview Board",
-    siteSubtitle: "Senior / Lead level · 310 questions · reading list · LeetCode",
+    siteSubtitle: (n) => `Senior / Lead level · ${n} questions · reading list · LeetCode`,
     languageToggleLabel: "Language",
     tabs: { questions: "Questions", resources: "Reading list", leetcode: "LeetCode" },
-    tabSub: { questions: "310 questions", resources: "where to read", leetcode: "by difficulty" },
+    tabSub: {
+      questions: (n) => `${n} question${pluralizeEn(n, "", "s")}`,
+      resources: "where to read",
+      leetcode: "by difficulty",
+    },
     searchPlaceholder: {
       questions: "search: boxing, GC, coroutines…",
       resources: "search the reading list…",
@@ -102,10 +107,15 @@ export const dictionaries: Record<Lang, Dictionary> = {
   ru: {
     siteEyebrow: "Картотека",
     siteTitle: "Доска Unity-собеса",
-    siteSubtitle: "Уровень Senior / Lead · 310 вопросов · список чтения · LeetCode",
+    siteSubtitle: (n) =>
+      `Уровень Senior / Lead · ${n} ${pluralizeRu(n, "вопрос", "вопроса", "вопросов")} · список чтения · LeetCode`,
     languageToggleLabel: "Язык",
     tabs: { questions: "Вопросы", resources: "Что читать", leetcode: "LeetCode" },
-    tabSub: { questions: "310 вопросов", resources: "где читать", leetcode: "задачи по сложности" },
+    tabSub: {
+      questions: (n) => `${n} ${pluralizeRu(n, "вопрос", "вопроса", "вопросов")}`,
+      resources: "где читать",
+      leetcode: "задачи по сложности",
+    },
     searchPlaceholder: {
       questions: "искать: боксинг, GC, корутины…",
       resources: "искать по списку чтения…",

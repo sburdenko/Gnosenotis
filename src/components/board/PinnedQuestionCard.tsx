@@ -5,6 +5,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import type { PinColor } from "@/lib/boardVisuals";
 import { PinnedCardShell } from "./PinnedCardShell";
 import { Highlight } from "./Highlight";
+import { Badge } from "./Badge";
 
 interface PinnedQuestionCardProps {
   question: Question;
@@ -48,7 +49,12 @@ export function PinnedQuestionCard({
       onTogglePin={onToggleReviewed}
       pinLabel={t.pinAria(reviewed, "reviewed")}
       onHeaderClick={handleHeaderClick}
-      meta={question.c}
+      meta={
+        <span className="flex items-center gap-1.5">
+          {question.c}
+          {question.p === "core" && <Badge tone="core">{t.badges.core}</Badge>}
+        </span>
+      }
       title={<Highlight text={pick(question.q, question.qru)} term={term} />}
     >
       {isOpen && (

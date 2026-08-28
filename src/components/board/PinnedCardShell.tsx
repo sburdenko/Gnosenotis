@@ -10,7 +10,7 @@ interface PinnedCardShellProps {
   onTogglePin: () => void;
   pinLabel: string;
   title: React.ReactNode;
-  meta: string;
+  meta: React.ReactNode;
   onHeaderClick?: () => void;
   children: React.ReactNode;
 }

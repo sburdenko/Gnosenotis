@@ -75,7 +75,7 @@ export function QuestionsBoard({ questions }: { questions: Question[] }) {
         <div className="min-w-0 flex-1">
           <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-2">
             <p className="font-display text-[11px] font-semibold tracking-[.2em] text-cream-dim uppercase">
-              {t.tabSub.questions}
+              {t.tabSub.questions(questions.length)}
             </p>
             <div className="flex items-center gap-3">
               <button
