@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useEscapeToClose } from "@/hooks/useEscapeToClose";
 import type { Question } from "@/types/content";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useProgressSet } from "@/hooks/useProgressSet";
@@ -18,7 +19,8 @@ export function QuestionsBoard({ questions }: { questions: Question[] }) {
   const { t } = useLanguage();
   const [term, setTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
-  const [openIds, setOpenIds] = useState<Set<number>>(new Set());
+  const [openId, setOpenId] = useState<number | null>(null);
+  useEscapeToClose(openId !== null, () => setOpenId(null));
   const [deepDiveId, setDeepDiveId] = useState<number | null>(null);
   const { done: reviewed, toggle: toggleReviewed, count: reviewedCount } = useProgressSet(PROGRESS_KEY);
 
@@ -41,15 +43,6 @@ export function QuestionsBoard({ questions }: { questions: Question[] }) {
     });
   }, [questions, activeCategory, term]);
 
-  function toggleCard(n: number) {
-    setOpenIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(n)) next.delete(n);
-      else next.add(n);
-      return next;
-    });
-  }
-
   const deepDiveQuestion = questions.find((q) => q.n === deepDiveId) ?? null;
   const remaining = questions.length - reviewedCount;
 
@@ -69,37 +62,23 @@ export function QuestionsBoard({ questions }: { questions: Question[] }) {
           activeId={activeCategory}
           onChange={setActiveCategory}
           ariaLabel={t.sectionsHeading}
-          stickyNote={<StickyNote eyebrow={t.tabs.questions}>{t.shelfNote(remaining, "questions")}</StickyNote>}
+          stickyNote={
+            <StickyNote eyebrow={t.tabs.questions}>{t.shelfNote(remaining, "questions")}</StickyNote>
+          }
         />
 
         <div className="min-w-0 flex-1">
-          <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-2">
+          <div className="mb-3.5 flex items-baseline justify-between">
             <p className="font-display text-[11px] font-semibold tracking-[.2em] text-cream-dim uppercase">
               {t.tabSub.questions(questions.length)}
             </p>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setOpenIds(new Set(filtered.map((q) => q.n)))}
-                className="font-display text-[10.5px] font-semibold tracking-[.1em] text-cream-dim uppercase hover:text-cream"
-              >
-                {t.expandAll}
-              </button>
-              <button
-                type="button"
-                onClick={() => setOpenIds(new Set())}
-                className="font-display text-[10.5px] font-semibold tracking-[.1em] text-cream-dim uppercase hover:text-cream"
-              >
-                {t.collapseAll}
-              </button>
-              <p className="font-mono text-[12px] text-cream-soft">
-                {t.filteredCount(filtered.length, questions.length)}
-              </p>
-            </div>
+            <p className="font-mono text-[12px] text-cream-soft">
+              {t.filteredCount(filtered.length, questions.length)}
+            </p>
           </div>
 
           {filtered.length > 0 ? (
-            <div className="grid items-start gap-[22px] md:grid-cols-2">
+            <div className="grid gap-[22px] md:grid-cols-2">
               {filtered.map((q, i) => (
                 <PinnedQuestionCard
                   key={q.n}
@@ -107,9 +86,9 @@ export function QuestionsBoard({ questions }: { questions: Question[] }) {
                   index={i}
                   term={term}
                   pinColor={pinColorForIndex(categories.indexOf(q.c))}
-                  isOpen={openIds.has(q.n)}
+                  isOpen={openId === q.n}
                   reviewed={Boolean(reviewed[q.n])}
-                  onToggleOpen={() => toggleCard(q.n)}
+                  onToggleOpen={() => setOpenId((current) => (current === q.n ? null : q.n))}
                   onToggleReviewed={() => toggleReviewed(String(q.n))}
                   onOpenDeepDive={setDeepDiveId}
                 />

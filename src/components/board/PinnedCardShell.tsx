@@ -12,7 +12,7 @@ interface PinnedCardShellProps {
   title: React.ReactNode;
   meta: React.ReactNode;
   onHeaderClick?: () => void;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   /**
    * Unfolded content, drawn as a panel hanging *over* the cards below rather
    * than in the grid flow. Expanding a card this way never changes the row

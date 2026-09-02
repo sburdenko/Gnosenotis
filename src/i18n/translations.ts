@@ -50,8 +50,6 @@ export interface Dictionary {
     patterns: string;
   };
   cardCount: (n: number) => string;
-  expandAll: string;
-  collapseAll: string;
   sectionsHeading: string;
   categoryAll: string;
   filteredCount: (visible: number, total: number) => string;
@@ -150,8 +148,6 @@ export const dictionaries: Record<Lang, Dictionary> = {
       patterns: "search: window, Dijkstra, knapsack…",
     },
     cardCount: (n) => `${n} card${pluralizeEn(n, "", "s")}`,
-    expandAll: "Expand all",
-    collapseAll: "Collapse all",
     sectionsHeading: "Sections",
     categoryAll: "All",
     filteredCount: (visible, total) => `${visible} of ${total}`,
@@ -243,8 +239,6 @@ export const dictionaries: Record<Lang, Dictionary> = {
       patterns: "искать: окно, Дейкстра, рюкзак…",
     },
     cardCount: (n) => `${n} ${pluralizeRu(n, "карточка", "карточки", "карточек")}`,
-    expandAll: "Развернуть всё",
-    collapseAll: "Свернуть всё",
     sectionsHeading: "Разделы",
     categoryAll: "Всё",
     filteredCount: (visible, total) => `${visible} из ${total}`,

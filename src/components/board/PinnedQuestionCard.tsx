@@ -56,34 +56,35 @@ export function PinnedQuestionCard({
         </span>
       }
       title={<Highlight text={pick(question.q, question.qru)} term={term} />}
-    >
-      {isOpen && (
-        <div>
-          {/*
-            `question.a` / `question.aru` are trusted static HTML we authored
-            ourselves (see the comment on `Question.a` in
-            src/types/content.ts) — that's what makes dangerouslySetInnerHTML
-            safe here. Never copy this pattern for anything derived from user
-            input, a CMS, or a network response without sanitizing it first.
-          */}
-          <div
-            className="legacy-html text-[15.5px]"
-            dangerouslySetInnerHTML={{ __html: pick(question.a, question.aru) }}
-          />
-          {question.d && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenDeepDive(question.n);
-              }}
-              className="stamp mt-3 inline-block rounded-none px-3 py-1.5 font-display text-[11px] font-semibold tracking-[.1em] uppercase"
-            >
-              {t.deepDiveButton}
-            </button>
-          )}
-        </div>
-      )}
-    </PinnedCardShell>
+      overlay={
+        isOpen && (
+          <div>
+            {/*
+              `question.a` / `question.aru` are trusted static HTML we authored
+              ourselves (see the comment on `Question.a` in
+              src/types/content.ts) — that's what makes dangerouslySetInnerHTML
+              safe here. Never copy this pattern for anything derived from user
+              input, a CMS, or a network response without sanitizing it first.
+            */}
+            <div
+              className="legacy-html text-[15.5px]"
+              dangerouslySetInnerHTML={{ __html: pick(question.a, question.aru) }}
+            />
+            {question.d && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenDeepDive(question.n);
+                }}
+                className="stamp mt-3 inline-block rounded-none px-3 py-1.5 font-display text-[11px] font-semibold tracking-[.1em] uppercase"
+              >
+                {t.deepDiveButton}
+              </button>
+            )}
+          </div>
+        )
+      }
+    />
   );
 }
