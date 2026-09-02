@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useEscapeToClose } from "@/hooks/useEscapeToClose";
 import type { AlgoPattern, LeetCodeGroup, PatternGroup, PatternId } from "@/types/content";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useProgressSet } from "@/hooks/useProgressSet";
@@ -24,7 +25,8 @@ export function PatternsBoard({ patternGroups, leetcodeGroups }: PatternsBoardPr
   const { t, pick } = useLanguage();
   const [term, setTerm] = useState("");
   const [activeGroup, setActiveGroup] = useState("all");
-  const [openIds, setOpenIds] = useState<Set<PatternId>>(new Set());
+  const [openId, setOpenId] = useState<PatternId | null>(null);
+  useEscapeToClose(openId !== null, () => setOpenId(null));
   const { done: learned, toggle: toggleLearned, count: learnedCount } = useProgressSet(PROGRESS_KEY);
 
   const usage = useMemo(() => buildPatternUsage(leetcodeGroups), [leetcodeGroups]);
@@ -53,15 +55,6 @@ export function PatternsBoard({ patternGroups, leetcodeGroups }: PatternsBoardPr
       .filter((group) => group.items.length > 0);
   }, [patternGroups, activeGroup, needle]);
 
-  function toggleCard(id: PatternId) {
-    setOpenIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
   const visibleCount = visibleGroups.reduce((sum, g) => sum + g.items.length, 0);
   const remaining = total - learnedCount;
 
@@ -85,27 +78,11 @@ export function PatternsBoard({ patternGroups, leetcodeGroups }: PatternsBoardPr
         />
 
         <div className="min-w-0 flex-1">
-          <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-2">
+          <div className="mb-3.5 flex items-baseline justify-between">
             <p className="font-display text-[11px] font-semibold tracking-[.2em] text-cream-dim uppercase">
               {t.tabSub.patterns}
             </p>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setOpenIds(new Set(visibleGroups.flatMap((g) => g.items.map((p) => p.id))))}
-                className="font-display text-[10.5px] font-semibold tracking-[.1em] text-cream-dim uppercase hover:text-cream"
-              >
-                {t.expandAll}
-              </button>
-              <button
-                type="button"
-                onClick={() => setOpenIds(new Set())}
-                className="font-display text-[10.5px] font-semibold tracking-[.1em] text-cream-dim uppercase hover:text-cream"
-              >
-                {t.collapseAll}
-              </button>
-              <p className="font-mono text-[12px] text-cream-soft">{t.filteredCount(visibleCount, total)}</p>
-            </div>
+            <p className="font-mono text-[12px] text-cream-soft">{t.filteredCount(visibleCount, total)}</p>
           </div>
 
           {visibleGroups.length > 0 ? (
@@ -114,17 +91,19 @@ export function PatternsBoard({ patternGroups, leetcodeGroups }: PatternsBoardPr
                 <h2 className="font-serif text-[17px] tracking-tight text-cream">
                   {pick(group.g, group.gru)}
                 </h2>
-                <div className="mt-3 grid items-start gap-[22px] md:grid-cols-2">
+                <div className="mt-3 grid gap-[22px] md:grid-cols-2">
                   {group.items.map((pattern, i) => (
                     <PinnedPatternCard
                       key={pattern.id}
                       pattern={pattern}
                       index={i}
                       pinColor={pinColorForIndex(patternGroups.indexOf(group))}
-                      isOpen={openIds.has(pattern.id)}
+                      isOpen={openId === pattern.id}
                       learned={Boolean(learned[pattern.id])}
                       usage={usage[pattern.id] ?? []}
-                      onToggleOpen={() => toggleCard(pattern.id)}
+                      onToggleOpen={() =>
+                        setOpenId((current) => (current === pattern.id ? null : pattern.id))
+                      }
                       onToggleLearned={() => toggleLearned(pattern.id)}
                     />
                   ))}

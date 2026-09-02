@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useEscapeToClose } from "@/hooks/useEscapeToClose";
 import type { AlgoPattern, LeetCodeGroup, PatternId } from "@/types/content";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useProgressSet } from "@/hooks/useProgressSet";
@@ -24,7 +25,10 @@ export function LeetCodeBoard({ leetcodeGroups, patternsById }: LeetCodeBoardPro
   const { t, pick } = useLanguage();
   const [term, setTerm] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
-  const [openSlugs, setOpenSlugs] = useState<Set<string>>(new Set());
+  // One card at a time: the unfolded part hangs over the cards below (see
+  // `PinnedCardShell`'s `overlay`), so two open at once would just stack.
+  const [openSlug, setOpenSlug] = useState<string | null>(null);
+  useEscapeToClose(openSlug !== null, () => setOpenSlug(null));
   const { done, toggle, count } = useProgressSet(PROGRESS_KEY);
 
   const total = useMemo(() => leetcodeGroups.reduce((sum, g) => sum + g.items.length, 0), [leetcodeGroups]);
@@ -73,15 +77,6 @@ export function LeetCodeBoard({ leetcodeGroups, patternsById }: LeetCodeBoardPro
       .filter((g) => g.items.length > 0);
   }, [leetcodeGroups, filter, needle]);
 
-  function toggleCard(slug: string) {
-    setOpenSlugs((prev) => {
-      const next = new Set(prev);
-      if (next.has(slug)) next.delete(slug);
-      else next.add(slug);
-      return next;
-    });
-  }
-
   const visibleCount = visibleGroups.reduce((sum, g) => sum + g.items.length, 0);
   const remaining = total - count;
 
@@ -105,27 +100,11 @@ export function LeetCodeBoard({ leetcodeGroups, patternsById }: LeetCodeBoardPro
         />
 
         <div className="min-w-0 flex-1">
-          <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-2">
+          <div className="mb-3.5 flex items-baseline justify-between">
             <p className="font-display text-[11px] font-semibold tracking-[.2em] text-cream-dim uppercase">
               {t.tabSub.leetcode}
             </p>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setOpenSlugs(new Set(visibleGroups.flatMap((g) => g.items.map((i) => i.s))))}
-                className="font-display text-[10.5px] font-semibold tracking-[.1em] text-cream-dim uppercase hover:text-cream"
-              >
-                {t.expandAll}
-              </button>
-              <button
-                type="button"
-                onClick={() => setOpenSlugs(new Set())}
-                className="font-display text-[10.5px] font-semibold tracking-[.1em] text-cream-dim uppercase hover:text-cream"
-              >
-                {t.collapseAll}
-              </button>
-              <p className="font-mono text-[12px] text-cream-soft">{t.filteredCount(visibleCount, total)}</p>
-            </div>
+            <p className="font-mono text-[12px] text-cream-soft">{t.filteredCount(visibleCount, total)}</p>
           </div>
 
           {visibleGroups.length > 0 ? (
@@ -134,7 +113,7 @@ export function LeetCodeBoard({ leetcodeGroups, patternsById }: LeetCodeBoardPro
                 <h2 className="font-serif text-[17px] tracking-tight text-cream">
                   {pick(group.g, group.gru)}
                 </h2>
-                <div className="mt-3 grid items-start gap-[22px] md:grid-cols-2">
+                <div className="mt-3 grid gap-[22px] md:grid-cols-2">
                   {group.items.map((item, i) => (
                     <PinnedLeetCodeCard
                       key={item.s}
@@ -142,10 +121,10 @@ export function LeetCodeBoard({ leetcodeGroups, patternsById }: LeetCodeBoardPro
                       index={i}
                       difficulty={group.d}
                       done={Boolean(done[item.s])}
-                      isOpen={openSlugs.has(item.s)}
+                      isOpen={openSlug === item.s}
                       patternsById={patternsById}
                       onToggleDone={() => toggle(item.s)}
-                      onToggleOpen={() => toggleCard(item.s)}
+                      onToggleOpen={() => setOpenSlug((current) => (current === item.s ? null : item.s))}
                     />
                   ))}
                 </div>

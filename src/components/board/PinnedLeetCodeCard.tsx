@@ -63,6 +63,36 @@ export function PinnedLeetCodeCard({
           {item.t}
         </a>
       }
+      overlay={
+        isOpen && (
+          <div className="border-t border-black/10 pt-2.5">
+            <p className="mb-1.5 font-display text-[10.5px] font-semibold tracking-[.16em] text-ink-muted uppercase">
+              {t.solutions.patterns}
+            </p>
+            <PatternChips
+              ids={item.pat}
+              patternsById={patternsById}
+              openId={openPattern}
+              onToggle={(id) => setOpenPattern((current) => (current === id ? null : id))}
+            />
+
+            {openPattern && (
+              <div className="mt-2.5 border-l-[3px] border-link/40 pl-3">
+                <p className="text-[14.5px] leading-snug text-ink-body">
+                  {pick(patternsById[openPattern].idea, patternsById[openPattern].idearu)}
+                </p>
+                <p className="mt-1 font-mono text-[11.5px] text-ink-muted">{patternsById[openPattern].cx}</p>
+                <PatternDetails pattern={patternsById[openPattern]} />
+              </div>
+            )}
+
+            <p className="mt-3.5 mb-1.5 font-display text-[10.5px] font-semibold tracking-[.16em] text-ink-muted uppercase">
+              {t.solutions.approaches}
+            </p>
+            <SolutionLadder approaches={item.sol} />
+          </div>
+        )
+      }
     >
       <p className="font-hand text-[18px] leading-tight text-hand">{pick(item.why, item.whyru)}</p>
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
@@ -84,35 +114,6 @@ export function PinnedLeetCodeCard({
         <span aria-hidden="true">{isOpen ? "▾" : "▸"}</span>
         {t.solutions.toggle(item.sol.length)}
       </button>
-
-      {isOpen && (
-        <div className="mt-2.5 border-t border-black/10 pt-2.5">
-          <p className="mb-1.5 font-display text-[10.5px] font-semibold tracking-[.16em] text-ink-muted uppercase">
-            {t.solutions.patterns}
-          </p>
-          <PatternChips
-            ids={item.pat}
-            patternsById={patternsById}
-            openId={openPattern}
-            onToggle={(id) => setOpenPattern((current) => (current === id ? null : id))}
-          />
-
-          {openPattern && (
-            <div className="mt-2.5 border-l-[3px] border-link/40 pl-3">
-              <p className="text-[14.5px] leading-snug text-ink-body">
-                {pick(patternsById[openPattern].idea, patternsById[openPattern].idearu)}
-              </p>
-              <p className="mt-1 font-mono text-[11.5px] text-ink-muted">{patternsById[openPattern].cx}</p>
-              <PatternDetails pattern={patternsById[openPattern]} />
-            </div>
-          )}
-
-          <p className="mt-3.5 mb-1.5 font-display text-[10.5px] font-semibold tracking-[.16em] text-ink-muted uppercase">
-            {t.solutions.approaches}
-          </p>
-          <SolutionLadder approaches={item.sol} />
-        </div>
-      )}
     </PinnedCardShell>
   );
 }

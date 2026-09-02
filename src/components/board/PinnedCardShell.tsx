@@ -13,6 +13,13 @@ interface PinnedCardShellProps {
   meta: React.ReactNode;
   onHeaderClick?: () => void;
   children: React.ReactNode;
+  /**
+   * Unfolded content, drawn as a panel hanging *over* the cards below rather
+   * than in the grid flow. Expanding a card this way never changes the row
+   * height, so the neighbours stay exactly where they were — the point of
+   * pinning things to a board is that they don't shuffle around.
+   */
+  overlay?: React.ReactNode;
 }
 
 /**
@@ -37,12 +44,16 @@ export function PinnedCardShell({
   meta,
   onHeaderClick,
   children,
+  overlay,
 }: PinnedCardShellProps) {
   const tilt = tiltForIndex(index);
 
   return (
     <article
-      className="pin-card tex-paper-ruled relative border border-black/10 px-5 pt-6 pb-5 shadow-card transition-[transform,box-shadow] duration-200 ease-out hover:shadow-card-hover"
+      className={
+        "pin-card tex-paper-ruled relative border border-black/10 px-5 pt-6 pb-5 shadow-card transition-[transform,box-shadow] duration-200 ease-out hover:shadow-card-hover " +
+        (overlay ? "z-30" : "")
+      }
       style={{ "--tilt": `${tilt}deg`, filter: done ? "saturate(.85)" : undefined } as React.CSSProperties}
     >
       <button
@@ -70,6 +81,12 @@ export function PinnedCardShell({
       </header>
 
       {children}
+
+      {overlay && (
+        <div className="tex-paper-ruled absolute top-full -right-px -left-px border border-t-0 border-black/10 px-5 pb-5 shadow-card-hover">
+          {overlay}
+        </div>
+      )}
     </article>
   );
 }

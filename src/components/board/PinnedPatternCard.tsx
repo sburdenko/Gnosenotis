@@ -41,6 +41,13 @@ export function PinnedPatternCard({
       onHeaderClick={onToggleOpen}
       meta={t.patterns.problemCount(usage.length)}
       title={pick(pattern.n, pattern.nru)}
+      overlay={
+        isOpen && (
+          <div className="border-t border-black/10 pt-2.5">
+            <PatternDetails pattern={pattern} usage={usage} />
+          </div>
+        )
+      }
     >
       <p className="text-[15px] leading-snug text-ink-body">{pick(pattern.idea, pattern.idearu)}</p>
 
@@ -60,12 +67,6 @@ export function PinnedPatternCard({
         <span aria-hidden="true">{isOpen ? "▾" : "▸"}</span>
         {isOpen ? t.patterns.collapse : t.patterns.expand}
       </button>
-
-      {isOpen && (
-        <div className="mt-2.5 border-t border-black/10 pt-2.5">
-          <PatternDetails pattern={pattern} usage={usage} />
-        </div>
-      )}
     </PinnedCardShell>
   );
 }
