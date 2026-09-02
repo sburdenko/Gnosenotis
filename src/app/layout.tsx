@@ -36,9 +36,9 @@ const caveat = Caveat({
 // Server Components can render Client Components, just not the other way
 // around (a Client Component can only *import* another Client Component).
 export const metadata: Metadata = {
-  title: "Unity Interview Board — 340 Questions",
+  title: "Unity Interview Board — 373 Questions",
   description:
-    "Senior/Lead Unity interview prep, styled as a card catalog: 340 C#/rendering/gameplay questions, a curated reading list, and 58 LeetCode problems.",
+    "Senior/Lead Unity interview prep, styled as a card catalog: 373 C#/rendering/gameplay/math questions, a curated reading list, algorithm patterns, and 58 LeetCode problems with solution ladders.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

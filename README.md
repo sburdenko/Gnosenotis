@@ -1,7 +1,7 @@
-# Unity Interview — 340 Questions (Next.js learning rewrite)
+# Unity Interview — 373 Questions (Next.js learning rewrite)
 
-A senior/lead-level Unity interview prep site: 340 C#/rendering/gameplay
-questions with bilingual (EN/RU) answers, ~140 "deep dive" lessons, a curated
+A senior/lead-level Unity interview prep site: 373 C#/rendering/gameplay/math
+questions with bilingual (EN/RU) answers, ~170 "deep dive" lessons, a curated
 reading list, 31 algorithm patterns with C# templates, and 58 LeetCode
 problems — each with a naive-to-optimal solution ladder and links to the
 patterns it drills — with reviewed/read/solved/learned progress saved to your

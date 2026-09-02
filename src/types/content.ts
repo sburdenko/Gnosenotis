@@ -11,7 +11,7 @@
 
 /** A single interview question, as shown in the "Questions" tab. */
 export interface Question {
-  /** Stable sequential id (1..340). Used as the React `key` and to link a card to its deep dive. */
+  /** Stable sequential id (1..373). Used as the React `key` and to link a card to its deep dive. */
   n: number;
   /** Category tag (e.g. "C#", "Rendering") — powers the category filter pills. */
   c: string;
@@ -38,7 +38,7 @@ export interface Question {
   /**
    * Optional "deep dive" lesson body (trusted HTML). Either authored inline
    * on the question itself, or merged in at load time from
-   * `src/data/deepDives.ts` — see `src/data/index.ts`. Only ~140 of the 340
+   * `src/data/deepDives.ts` — see `src/data/index.ts`. About 170 of the 373
    * questions currently have one.
    */
   d?: string;

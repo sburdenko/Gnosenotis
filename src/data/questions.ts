@@ -2858,4 +2858,1234 @@ NullPlatformServices  <span class="cm">// редактор и тесты</span>
 <li><a href="https://docs.unity3d.com/Manual/class-QualitySettings.html" target="_blank">Quality Settings</a> <span>— уровни качества как данные</span></li>
 </ul></div>`},
 
+{n:341,c:"C#",p:"core",
+q:`How does the compiler implement a closure, and why does the allocation happen at scope entry rather than when the lambda is created?`,
+qru:`Как компилятор реализует замыкание и почему аллокация происходит при входе в область видимости, а не при создании лямбды?`,
+a:`Captured locals stop being locals: the compiler moves them into fields of a generated class (<code>&lt;&gt;c__DisplayClass</code>), and the lambda becomes an instance method on it. That object is created when the *scope declaring the captured variables* is entered — not where the lambda expression sits. So a lambda inside an <code>if</code> that is never taken still costs the display-class allocation on every call of the method, and every read of a captured variable in the outer method is now a field access through that object. One display class per scope: all captured variables of the scope share it, so a tiny lambda capturing <code>x</code> keeps alive a large buffer captured by a sibling lambda in the same scope, and nested scopes (loop bodies) chain their display classes to the parent's. The delegate is a second allocation, made where the lambda is evaluated. Practical rules: keep capture scopes small (a separate method is a scope boundary), never capture in per-frame code, pass state explicitly, use <code>static</code> lambdas to make capture a compile error, and read the rewrite in SharpLab when in doubt.`,
+aru:`Захваченные локальные переменные перестают быть локальными: компилятор переносит их в поля сгенерированного класса (<code>&lt;&gt;c__DisplayClass</code>), а лямбда становится его методом экземпляра. Этот объект создаётся при входе в *область видимости, объявившую захваченные переменные*, а не там, где написана лямбда. Поэтому лямбда внутри <code>if</code>, в который никогда не заходят, всё равно стоит аллокацию display class при каждом вызове метода, а каждое чтение захваченной переменной во внешнем методе теперь идёт через поле этого объекта. Один display class на область: все захваченные переменные области делят его, так что крошечная лямбда с захватом <code>x</code> удерживает в памяти большой буфер, захваченный соседней лямбдой в той же области, а вложенные области (тело цикла) цепляют свои display class к родительскому. Делегат — вторая аллокация, уже в точке вычисления лямбды. Практика: держать области захвата маленькими (отдельный метод — граница области), никогда не захватывать в покадровом коде, передавать состояние явно, использовать <code>static</code>-лямбды, чтобы захват стал ошибкой компиляции, и в сомнениях смотреть переписанный код в SharpLab.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Лямбда «помнит» переменную не магией: компилятор кладёт эту переменную в коробку (объект на куче) и даёт лямбде ссылку на коробку. Коробка создаётся заранее — в момент, когда переменная появляется на свет, — и одна на всю область видимости.</p>
+<h3>Что реально генерирует компилятор</h3>
+<pre><span class="cm">// Вы пишете:</span>
+void OnSpawn(Enemy enemy)
+{
+    var buffer = new int[4096];                <span class="cm">// тяжёлая локальная</span>
+    if (enemy.IsBoss)
+        onDeath += () =&gt; Reward(enemy);        <span class="cm">// захватывает только enemy</span>
+    Process(buffer);
+}
+
+<span class="cm">// Компилятор делает (упрощённо):</span>
+sealed class DisplayClass { public Enemy enemy; public int[] buffer; public void Lambda() =&gt; Reward(enemy); }
+void OnSpawn(Enemy enemy)
+{
+    var dc = new DisplayClass();               <span class="cm">// аллокация ВСЕГДА, даже если IsBoss == false</span>
+    dc.enemy = enemy;
+    dc.buffer = new int[4096];                 <span class="cm">// buffer тоже переехал в коробку, если его захватила</span>
+    if (dc.enemy.IsBoss)                       <span class="cm">//   хоть одна лямбда в этой области</span>
+        onDeath += new Action(dc.Lambda);      <span class="cm">// аллокация делегата — только на этой ветке</span>
+    Process(dc.buffer);
+}</pre>
+<div class="warn">Пока жив делегат, жива вся коробка — и <code>buffer</code> тоже, хотя лямбде он не нужен. Это скрытая утечка «через соседа», которую видно только в Memory Profiler по пути удержания через <code>&lt;&gt;c__DisplayClass</code>.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Замыкание — это display class плюс делегат: две аллокации. Display class создаётся при входе в область, по одному на область, поэтому захват в <code>Update</code> — гарантированный GC-поток, а маленькая лямбда может удерживать большие соседние переменные. Лечится: узкие области захвата, явная передача состояния, <code>static</code>-лямбды и локальные функции».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://sharplab.io/" target="_blank">SharpLab</a> <span>— вставьте лямбду и посмотрите сгенерированный display class своими глазами</span></li>
+<li><a href="https://csharpindepth.com/articles/Closures" target="_blank">Jon Skeet — Closures in C#</a> <span>— классическое объяснение с примерами компиляции</span></li>
+<li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/lambda-expressions" target="_blank">Lambda expressions (docs)</a> <span>— захват переменных, static-лямбды, правила</span></li>
+</ul></div>`},
+
+{n:342,c:"C#",p:"core",
+q:`Capturing a loop variable in a lambda: what changed for foreach in C# 5, why does for still bite, and where does this show up in Unity code?`,
+qru:`Захват переменной цикла в лямбде: что изменилось для foreach в C# 5, почему for всё ещё кусается и где это всплывает в Unity-коде?`,
+a:`A closure captures the *variable*, not its value at that moment. In a <code>for</code> loop there is exactly one <code>i</code> for the whole loop, so ten lambdas created inside it all share one display class and all see the final value when they run later — the classic "every button opens the last level" bug. C# 5 changed <code>foreach</code> to declare a fresh iteration variable per iteration, so capturing it is safe; <code>for</code> was deliberately left alone because its variable is semantically one mutable counter. The fix is to copy into a loop-body local (<code>int index = i;</code>) — that local lives in the body scope, so each iteration gets its own display class — or to pass the value as explicit state. Unity hotspots: wiring <code>Button.onClick</code> in a loop, spawning coroutines in a loop that capture the counter, registering Addressables/UnityWebRequest callbacks per item, and <code>async</code> methods started in a loop. The same rule applies to any variable mutated after capture: the lambda sees the mutation, which is sometimes exactly what you want and usually what you forgot.`,
+aru:`Замыкание захватывает *переменную*, а не её значение на тот момент. В цикле <code>for</code> на весь цикл ровно одна <code>i</code>, поэтому десять созданных внутри лямбд делят один display class и при запуске видят финальное значение — классический баг «каждая кнопка открывает последний уровень». В C# 5 <code>foreach</code> изменили: переменная итерации объявляется заново на каждой итерации, и её захват безопасен; <code>for</code> намеренно не трогали — его переменная семантически один изменяемый счётчик. Лечение — копия в локальную переменную тела цикла (<code>int index = i;</code>): она живёт в области тела, и каждая итерация получает свой display class; либо передача значения явным состоянием. Горячие точки в Unity: подписка <code>Button.onClick</code> в цикле, запуск корутин в цикле с захватом счётчика, регистрация коллбэков Addressables/UnityWebRequest на каждый элемент, <code>async</code>-методы, стартующие в цикле. То же правило для любой переменной, изменяемой после захвата: лямбда видит изменение — иногда это ровно то, что нужно, а обычно то, о чём забыли.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Лямбда получает не бумажку с числом, а ссылку на ячейку, где число лежит. Если ячейка одна на весь цикл, все лямбды смотрят в одну ячейку и прочитают то, что в ней окажется в конце.</p>
+<h3>Баг и лечение</h3>
+<pre><span class="cm">// Баг: все кнопки откроют уровень levels.Length (последнее значение i после цикла)</span>
+for (int i = 0; i &lt; levels.Length; i++)
+    buttons[i].onClick.AddListener(() =&gt; LoadLevel(i));
+
+<span class="cm">// Лечение 1: копия в области тела — своя ячейка на итерацию</span>
+for (int i = 0; i &lt; levels.Length; i++)
+{
+    int index = i;
+    buttons[i].onClick.AddListener(() =&gt; LoadLevel(index));
+}
+
+<span class="cm">// Лечение 2: foreach — с C# 5 переменная итерации свежая на каждом витке</span>
+foreach (var level in levels)
+    level.button.onClick.AddListener(() =&gt; LoadLevel(level.id));
+
+<span class="cm">// Лечение 3 (без аллокаций на лямбду): явное состояние вместо захвата</span>
+buttons[i].Bind(LoadLevelById, i);           <span class="cm">// Bind(Action&lt;int&gt; cb, int state)</span></pre>
+<div class="tip">Проверка на код-ревью: любая лямбда внутри <code>for</code>/<code>while</code>, использующая счётчик или переменную, которая меняется ниже по коду, — кандидат на баг. Особенно в корутинах: <code>StartCoroutine(Spawn(i))</code> безопасно (аргумент копируется), а <code>StartCoroutine(Delayed(() =&gt; Spawn(i)))</code> — нет.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Захватывается переменная, не значение. У <code>for</code> одна переменная на цикл, у <code>foreach</code> с C# 5 — своя на итерацию. Копирую в локальную переменную тела цикла или передаю значение явным состоянием, чтобы заодно не платить за замыкание».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://ericlippert.com/2009/11/12/closing-over-the-loop-variable-considered-harmful-part-one/" target="_blank">Eric Lippert — Closing over the loop variable considered harmful</a> <span>— почему так и почему изменили именно foreach</span></li>
+<li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/iteration-statements" target="_blank">Iteration statements (docs)</a> <span>— семантика переменной итерации</span></li>
+</ul></div>`},
+
+{n:343,c:"C#",p:"core",
+q:`Why does unsubscribing a lambda with -= silently do nothing, how does delegate equality work, and what pattern do you use instead?`,
+qru:`Почему отписка лямбды через -= молча не срабатывает, как работает равенство делегатов и какой паттерн использовать вместо этого?`,
+a:`<code>-=</code> removes the first entry in the invocation list that is <em>equal</em> to the operand, and delegate equality means same target object and same method. A lambda expression evaluated twice produces two delegate objects; if it captures anything, each has its own display-class target, so they are never equal and the removal finds nothing — no exception, the subscriber stays, the leak begins. Non-capturing lambdas happen to be cached by the compiler and therefore compare equal, which makes the bug intermittent: it appears the day someone adds a captured variable. Method groups (<code>handler.OnHit</code>) create a new delegate per conversion too, but equality is by target + method, so <code>-= OnHit</code> works. The robust pattern: store the delegate you subscribed in a field and unsubscribe that exact instance; or return a disposable/subscription token from the subscribe call and dispose it (the R3/UniRx model, and what <code>CancellationToken.Register</code> does); or tie subscriptions to a lifetime (<code>destroyCancellationToken</code>) so teardown is automatic. Anonymous subscriptions with no stored handle should be treated as permanent by code review.`,
+aru:`<code>-=</code> удаляет первую запись в invocation list, <em>равную</em> операнду, а равенство делегатов — это тот же объект-цель и тот же метод. Лямбда, вычисленная дважды, даёт два объекта делегата; если она что-то захватывает, у каждого свой display class в роли цели, они никогда не равны, и удаление ничего не находит — без исключения, подписчик остаётся, начинается утечка. Лямбды без захвата компилятор кэширует, и они случайно равны — от этого баг плавающий: он появится в день, когда кто-то добавит захваченную переменную. Method group (<code>handler.OnHit</code>) тоже создаёт новый делегат на каждое преобразование, но равенство по цели + методу, поэтому <code>-= OnHit</code> работает. Надёжный паттерн: хранить подписанный делегат в поле и отписывать ровно этот экземпляр; либо возвращать из подписки disposable/токен и освобождать его (модель R3/UniRx и то, что делает <code>CancellationToken.Register</code>); либо привязывать подписки к времени жизни (<code>destroyCancellationToken</code>), чтобы снятие было автоматическим. Анонимную подписку без сохранённого хэндла на код-ревью считайте вечной.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Чтобы что-то вычеркнуть из списка, нужно предъявить «то же самое». Лямбда, написанная второй раз, — это новый объект, и список её «не узнаёт». Ошибки не будет — просто ничего не произойдёт.</p>
+<h3>Три варианта — два неверных</h3>
+<pre><span class="cm">// 1. Не работает: два разных объекта делегата, если есть захват</span>
+void OnEnable()  =&gt; health.OnChanged += v =&gt; bar.Set(v / max);
+void OnDisable() =&gt; health.OnChanged -= v =&gt; bar.Set(v / max);   <span class="cm">// тихо ничего не снимает</span>
+
+<span class="cm">// 2. Работает: хранить экземпляр</span>
+Action&lt;float&gt; onChanged;
+void OnEnable()  { onChanged = v =&gt; bar.Set(v / max); health.OnChanged += onChanged; }
+void OnDisable() { health.OnChanged -= onChanged; }
+
+<span class="cm">// 3. Лучше всего: подписка возвращает хэндл, время жизни привязано к объекту</span>
+void OnEnable() =&gt; health.OnChanged.Subscribe(v =&gt; bar.Set(v / max))
+                                    .AddTo(destroyCancellationToken);</pre>
+<div class="tip">Ключевой факт для ответа: <code>Delegate.Equals</code> сравнивает <code>Target</code> и <code>Method</code>. Method group даёт равные делегаты (один <code>this</code>, один метод), лямбда с захватом — нет (новый display class каждый раз).</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Равенство делегатов — цель плюс метод. Лямбда с захватом каждый раз новая, поэтому <code>-=</code> не находит её. Либо храню экземпляр, либо подписка возвращает disposable, либо привязываю к времени жизни через CancellationToken. Симметрия OnEnable/OnDisable — обязательное правило».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://learn.microsoft.com/en-us/dotnet/api/system.delegate.equals" target="_blank">Delegate.Equals (docs)</a> <span>— формальные правила равенства</span></li>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/MonoBehaviour-destroyCancellationToken.html" target="_blank">MonoBehaviour.destroyCancellationToken</a> <span>— встроенный токен времени жизни объекта (Unity 2022.2+)</span></li>
+<li><a href="https://github.com/Cysharp/R3" target="_blank">R3</a> <span>— современная реактивная библиотека с подписками-хэндлами; читать README про lifetime</span></li>
+</ul></div>`},
+
+{n:344,c:"C#",p:"mid",
+q:`Static lambdas and local functions: what do they guarantee about allocation, and when does a local function still allocate?`,
+qru:`Static-лямбды и локальные функции: что они гарантируют насчёт аллокаций и когда локальная функция всё-таки аллоцирует?`,
+a:`A <code>static</code> lambda (C# 9) cannot capture locals, parameters or <code>this</code> — any attempt is a compile error — so the compiler can cache the delegate in a static field: one allocation per program, not per call. It does not make the delegate itself free; it guarantees no closure. A local function is different: it is compiled to a regular method, and when it captures, the captured variables go into a <em>struct</em> passed by reference, not a heap display class — so calling a capturing local function directly allocates nothing. It starts allocating the moment you convert it to a delegate (pass it as an <code>Action</code>, store it): then the compiler needs a heap closure again, exactly like a lambda. <code>static</code> local functions forbid capture the same way. Rule of thumb: call it directly → local function, zero cost; hand it to something as a delegate → you are paying for a closure, so make it static and pass state explicitly. Local functions also support iterators, recursion, and can be declared after use, which lambdas cannot.`,
+aru:`<code>static</code>-лямбда (C# 9) не может захватывать локальные переменные, параметры и <code>this</code> — любая попытка это ошибка компиляции, — поэтому компилятор кэширует делегат в статическом поле: одна аллокация на программу, а не на вызов. Она не делает сам делегат бесплатным, она гарантирует отсутствие замыкания. Локальная функция устроена иначе: это обычный метод, а при захвате переменные уезжают в <em>структуру</em>, передаваемую по ссылке, а не в display class на куче — прямой вызов захватывающей локальной функции ничего не аллоцирует. Аллокации начинаются в момент преобразования в делегат (передали как <code>Action</code>, сохранили): тогда компилятору снова нужно замыкание на куче, ровно как для лямбды. <code>static</code>-локальные функции запрещают захват так же. Правило: зовёте напрямую — локальная функция, ноль стоимости; отдаёте куда-то как делегат — платите за замыкание, поэтому делайте её static и передавайте состояние явно. Локальные функции ещё умеют быть итераторами, рекурсией и объявляться после использования, чего лямбды не могут.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Лямбда — это всегда «объект-функция». Локальная функция — обычный метод, который просто спрятан внутри другого. Пока вы её вызываете сами, она бесплатна; как только отдаёте кому-то «на потом», она превращается в объект-функцию со всеми последствиями.</p>
+<h3>Где проходит граница</h3>
+<pre>void Tick(float dt)
+{
+    float speed = baseSpeed * modifier;
+
+    <span class="cm">// Захватывает speed, но компилируется в метод со struct-замыканием по ref: 0 аллокаций</span>
+    void Move(Transform t) =&gt; t.position += t.forward * speed * dt;
+    foreach (var u in units) Move(u.transform);
+
+    <span class="cm">// Та же функция, отданная делегатом: замыкание уезжает на кучу — аллокация</span>
+    units.ForEach(u =&gt; Move(u.transform));
+
+    <span class="cm">// static: захват запрещён компилятором, делегат кэшируется один раз</span>
+    units.ForEach(static u =&gt; u.Reset());
+}</pre>
+<div class="tip">Хороший маркер в код-ревью: <code>static</code> на лямбде в горячем коде — сигнал, что автор думал об аллокациях. Отсутствие — вопрос «а что здесь захватывается?».</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«<code>static</code>-лямбда гарантирует отсутствие захвата, поэтому делегат кэшируется. Локальная функция при прямом вызове не аллоцирует даже с захватом — замыкание в struct по ссылке; аллокация появляется при преобразовании в делегат. В горячем коде: прямой вызов или static + явное состояние».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/local-functions" target="_blank">Local functions (docs)</a> <span>— включая раздел о различиях с лямбдами и struct-замыканиях</span></li>
+<li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/lambda-expressions#static-lambdas" target="_blank">Static lambdas (docs)</a> <span>— что именно запрещено</span></li>
+</ul></div>`},
+
+{n:345,c:"C#",p:"core",
+q:`Raising an event safely: why copy the handler to a local, and what happens when a subscriber unsubscribes during the invocation?`,
+qru:`Безопасный вызов события: зачем копировать обработчик в локальную переменную и что происходит, если подписчик отписывается во время вызова?`,
+a:`<code>OnHit?.Invoke()</code> compiles to "read the field into a temporary, null-check the temporary, invoke the temporary" — which is the copy-to-local idiom done for you. It matters because between the null check and the invoke another thread (or, in single-threaded Unity, a handler earlier in the same list) could unsubscribe the last handler and set the field to null; invoking the captured temporary is safe because a multicast delegate is <em>immutable</em>: <code>-=</code> produces a new delegate, it never mutates the list being iterated. The flip side of immutability: a handler that unsubscribes itself during the invocation is still called for the rest of *this* dispatch, and a handler that subscribes a new one will not see it run until the next raise. If that surprises your design, dispatch from a snapshot explicitly and document it. Ordering: handlers run in subscription order, but relying on that couples subscribers invisibly — if order matters, it is not an event, it is a pipeline. And the raise site should never be on a background thread for Unity objects; marshal to the main thread first.`,
+aru:`<code>OnHit?.Invoke()</code> компилируется в «прочитать поле во временную переменную, проверить её на null, вызвать временную» — это идиома копирования в локальную, сделанная за вас. Она важна, потому что между проверкой на null и вызовом другой поток (или, в однопоточном Unity, обработчик, стоящий раньше в том же списке) может отписать последнего подписчика и обнулить поле; вызов сохранённой копии безопасен, потому что multicast-делегат <em>иммутабелен</em>: <code>-=</code> создаёт новый делегат и никогда не меняет список, по которому идёт итерация. Обратная сторона иммутабельности: обработчик, отписавшийся во время вызова, всё равно получит остаток *этой* рассылки, а подписавшийся новый обработчик не будет вызван до следующего raise. Если это ломает дизайн — рассылайте из явного снимка и задокументируйте. Порядок: обработчики идут в порядке подписки, но полагаться на это — невидимая связка подписчиков; если порядок важен, это не событие, а пайплайн. И точка вызова для Unity-объектов никогда не должна быть в фоновом потоке — сначала маршализация в главный.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Список подписчиков — это фотография: подписка и отписка делают новую фотографию, старую не трогают. Пока вы рассылаете по старой, она не изменится под руками — это и защита, и источник «почему меня вызвали после отписки».</p>
+<h3>Что происходит в коде</h3>
+<pre><span class="cm">// Это:</span>
+OnHit?.Invoke(damage);
+<span class="cm">// эквивалентно этому — временная копия защищает от гонки «обнулили между проверкой и вызовом»:</span>
+var handler = OnHit;
+if (handler != null) handler(damage);
+
+<span class="cm">// Иммутабельность списка: подписчик B отписался внутри A — но B ещё вызовут в ЭТОЙ рассылке</span>
+OnHit += A;  OnHit += B;
+<span class="cm">// A: OnHit -= B;  → поле получило новый делегат [A], а идём мы по старому [A, B]</span>
+
+<span class="cm">// Если нужна изоляция ошибок — по копии списка (кэшируйте, GetInvocationList аллоцирует массив)</span>
+foreach (Action&lt;int&gt; h in handler.GetInvocationList())
+    try { h(damage); } catch (Exception e) { Debug.LogException(e); }</pre>
+<div class="warn">Для Unity-объектов подписчик может быть уже уничтожен (fake null): вызов его метода бросит <code>MissingReferenceException</code> и остановит остаток списка. Симметричная отписка в <code>OnDisable</code> — единственное честное лечение; проверка <code>if (target == null)</code> внутри обработчика лишь маскирует утечку.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«<code>?.Invoke</code> — это копия в локальную плюс проверка. Multicast-делегат иммутабелен, поэтому список во время рассылки не меняется: отписавшийся всё равно получит текущую рассылку, новый подписчик — только следующую. Порядок вызова не контракт».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/events/" target="_blank">Events (C# programming guide)</a> <span>— семантика add/remove и вызова</span></li>
+<li><a href="https://learn.microsoft.com/en-us/dotnet/api/system.delegate.getinvocationlist" target="_blank">Delegate.GetInvocationList</a> <span>— когда нужна поэлементная рассылка</span></li>
+</ul></div>`},
+
+{n:346,c:"C#",p:"core",
+q:`Delegates vs interfaces for callbacks: allocation, devirtualization, Burst compatibility — how do you choose per situation?`,
+qru:`Делегаты или интерфейсы для коллбэков: аллокации, девиртуализация, совместимость с Burst — как выбирать в каждой ситуации?`,
+a:`Both are indirect calls of similar raw cost; the difference is everything around the call. A delegate is an object: creating it allocates, it strongly holds its target, it supports multicast and lambdas, and it composes anywhere (<code>Action</code> is the universal glue). An interface is a shape the object already has: no allocation to "subscribe" (you store a reference you already hold), one object can satisfy several callbacks, and with a generic constraint on a struct (<code>where T : struct, IHandler</code>) the JIT specialises the code and the call becomes direct and inlinable — the delegate can never be devirtualised. In Burst, managed delegates do not exist at all: the choice is <code>FunctionPointer&lt;T&gt;</code> (created once via <code>BurstCompiler.CompileFunctionPointer</code>, a static method) or the struct-generic pattern the Job System is built on (<code>IJob</code> is an interface for exactly this reason). Choose delegates for loosely coupled, low-frequency notification and for one-off async continuations; interfaces for high-frequency, lifetime-bound callbacks between systems that already know each other (<code>IDamageable</code>, <code>ITickable</code>) and wherever you want a struct-specialised hot loop; function pointers when the callee is Burst code. The tell of a bad choice: an <code>Action</code> field being reassigned every frame, or an interface with one method and twenty implementers that only exist to be called back.`,
+aru:`Оба — косвенные вызовы с близкой сырой ценой; разница во всём вокруг вызова. Делегат — объект: создание аллоцирует, он жёстко держит цель, поддерживает multicast и лямбды и стыкуется с чем угодно (<code>Action</code> — универсальный клей). Интерфейс — форма, которая у объекта уже есть: «подписка» не аллоцирует (вы храните ссылку, которая уже была), один объект закрывает несколько коллбэков, а с дженерик-ограничением на struct (<code>where T : struct, IHandler</code>) JIT специализирует код, и вызов становится прямым и инлайнящимся — делегат девиртуализировать нельзя никогда. В Burst управляемых делегатов нет вовсе: выбор — <code>FunctionPointer&lt;T&gt;</code> (создаётся один раз через <code>BurstCompiler.CompileFunctionPointer</code> из статического метода) или паттерн «дженерик по struct», на котором построена Job System (<code>IJob</code> — интерфейс ровно поэтому). Делегаты — для слабо связанных редких уведомлений и одноразовых async-продолжений; интерфейсы — для частых, привязанных к времени жизни коллбэков между системами, которые уже знают друг друга (<code>IDamageable</code>, <code>ITickable</code>), и везде, где нужен специализированный по struct горячий цикл; указатели на функции — когда вызываемый код в Burst. Признак плохого выбора: поле <code>Action</code>, переприсваиваемое каждый кадр, или интерфейс с одним методом и двадцатью реализациями, существующими только ради обратного вызова.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Делегат — «визитка с телефоном»: её надо напечатать (аллокация), она хранит, кому звонить, и таких визиток можно собрать пачку. Интерфейс — «этот объект умеет отвечать на звонок»: ничего печатать не надо, но звонить можно только тем, кого вы и так знаете.</p>
+<h3>Специализация по struct — единственный способ прямого вызова</h3>
+<pre><span class="cm">// Делегат: косвенный вызов, никогда не инлайнится, аллокация на создание</span>
+void ForEach(Action&lt;Unit&gt; action) { foreach (var u in units) action(u); }
+
+<span class="cm">// Интерфейс через class: косвенный вызов через vtable, без аллокации на подписку</span>
+void ForEach(IUnitVisitor v)       { foreach (var u in units) v.Visit(u); }
+
+<span class="cm">// Дженерик по struct: JIT генерирует отдельный код на каждый TVisitor — вызов прямой, инлайнится</span>
+void ForEach&lt;TVisitor&gt;(ref TVisitor v) where TVisitor : struct, IUnitVisitor
+{
+    foreach (var u in units) v.Visit(u);
+}
+<span class="cm">// Именно так устроены IJob/IJobParallelFor и IComparer через struct в сортировках NativeArray</span></pre>
+<div class="tip">Под IL2CPP дженерики по struct тоже получают отдельную инстанциацию (по reference-типам код общий), так что паттерн работает и там, а не только в Mono/CoreCLR.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Делегат — объект: аллокация, сильная ссылка на цель, multicast, гибкость. Интерфейс — без аллокации, привязан к объекту, а через struct-дженерик даёт прямой инлайнящийся вызов. В Burst делегатов нет — FunctionPointer или struct-дженерик, как в Job System. Выбираю по частоте вызова и по тому, знают ли стороны друг друга».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/Packages/com.unity.burst@1.8/manual/csharp-function-pointers.html" target="_blank">Burst — Function pointers</a> <span>— как и почему делегаты заменяются указателями</span></li>
+<li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/generics/constraints-on-type-parameters" target="_blank">Constraints on type parameters</a> <span>— основа паттерна struct-дженерика</span></li>
+</ul></div>`},
+
+{n:347,c:"C#",p:"mid",
+q:`Closures inside coroutines and async methods: what gets captured, how long does it live, and why does a captured this keep a destroyed MonoBehaviour alive?`,
+qru:`Замыкания внутри корутин и async-методов: что захватывается, сколько живёт и почему захваченный this удерживает уничтоженный MonoBehaviour?`,
+a:`An iterator or async method is itself a compiler-generated state machine object: every local that survives a <code>yield</code>/<code>await</code> becomes a field of that object, and <code>this</code> becomes a field too. So a coroutine or task holds its MonoBehaviour strongly for as long as it is alive, and a lambda inside it that touches a local or a member captures the state machine (or a display class chained to it). Lifetime consequences: <code>Destroy</code> removes the native object and Unity stops coroutines it owns, but a <em>Task</em> or a callback registered with an external system (Addressables, a web request, a timer service) keeps running, holds the fake-null C# wrapper, and then dereferences it — the "MissingReferenceException from a method that already returned" class of bug. The managed wrapper and everything it references stay in memory until the last continuation completes. Defenses: pass <code>destroyCancellationToken</code> into every awaited operation, check <code>this == null</code> after each <code>await</code> that could outlive the object, prefer <code>Awaitable</code>/UniTask methods that take a token, and keep heavy state out of locals that straddle an await (they are promoted to heap fields for the whole lifetime of the operation).`,
+aru:`Итератор или async-метод сам по себе — сгенерированный компилятором объект-стейтмашина: каждая локальная переменная, переживающая <code>yield</code>/<code>await</code>, становится его полем, и <code>this</code> тоже. Значит, корутина или задача жёстко держит свой MonoBehaviour, пока жива, а лямбда внутри, трогающая локальную переменную или член класса, захватывает стейтмашину (или display class, прицепленный к ней). Последствия для времени жизни: <code>Destroy</code> убирает нативный объект, и Unity останавливает свои корутины, но <em>Task</em> или коллбэк, зарегистрированный во внешней системе (Addressables, веб-запрос, сервис таймеров), продолжает работать, держит fake-null C#-обёртку и затем разыменовывает её — класс багов «MissingReferenceException из метода, который уже вернулся». Управляемая обёртка и всё, на что она ссылается, живут в памяти до завершения последнего продолжения. Защита: передавать <code>destroyCancellationToken</code> в каждую ожидаемую операцию, проверять <code>this == null</code> после каждого <code>await</code>, способного пережить объект, предпочитать методы <code>Awaitable</code>/UniTask с токеном и не держать тяжёлое состояние в локальных переменных, живущих через await (они на всё время операции становятся полями на куче).`,
+d:`
+<h3>Простыми словами</h3>
+<p>Корутина и async-метод — это не «функция, которая ждёт», а объект, в который сложили все переменные функции, включая <code>this</code>. Пока объект-ожидание жив, жив и ваш MonoBehaviour в управляемой памяти — даже если сцена его уже уничтожила.</p>
+<h3>Типичный баг и его лечение</h3>
+<pre><span class="cm">// Баг: объект уничтожили во время загрузки — продолжение выполнится на fake-null this</span>
+async void Start()
+{
+    var sprite = await LoadSpriteAsync(url);
+    icon.sprite = sprite;                       <span class="cm">// MissingReferenceException</span>
+}
+
+<span class="cm">// Лечение: токен уничтожения + проверка после await, если операция не отменяемая</span>
+async Awaitable Start()
+{
+    var sprite = await LoadSpriteAsync(url, destroyCancellationToken);
+    if (this == null) return;                   <span class="cm">// нужно только для API без токена</span>
+    icon.sprite = sprite;
+}
+
+<span class="cm">// Стейтмашина, которую сгенерирует компилятор (упрощённо): this и локальные — поля объекта</span>
+struct StartStateMachine : IAsyncStateMachine
+{
+    public Enemy self;                           <span class="cm">// захваченный this</span>
+    public string url; Sprite sprite; int state; <span class="cm">// локальные через await → поля</span>
+    public void MoveNext() { ... }
+}</pre>
+<div class="warn"><code>async void</code> здесь вдвойне опасен: исключение из продолжения нельзя перехватить снаружи, и никто не узнает, что метод «умер» на уничтоженном объекте. В Unity используйте <code>async Awaitable</code>/<code>UniTaskVoid</code> с токеном.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Async-метод — стейтмашина, локальные и <code>this</code> — её поля. <code>Destroy</code> не отменяет Task, только корутины. Поэтому: <code>destroyCancellationToken</code> во все await, проверка <code>this == null</code> там, где API токен не принимает, и никаких тяжёлых локальных через await».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/Manual/async-await-support.html" target="_blank">Unity — async/await support</a> <span>— Awaitable, отмена, главный поток</span></li>
+<li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/yield" target="_blank">yield (docs)</a> <span>— как итератор превращается в стейтмашину</span></li>
+</ul></div>`},
+
+{n:348,c:"C#",p:"mid",
+q:`An exception inside an event subscriber: what happens to the rest of the invocation list, and how do you design robust event dispatch?`,
+qru:`Исключение внутри подписчика события: что происходит с остальным списком вызова и как спроектировать надёжную рассылку событий?`,
+a:`Multicast invocation is a plain loop with no try/catch: subscriber N throws, the exception propagates out of <code>Invoke</code>, subscribers N+1… never run, and the raiser's own code after the raise is skipped too. In Unity this is how one broken UI widget "breaks damage" — a listener on <code>OnHealthChanged</code> throws, the kill logic subscribed later never fires. There are two legitimate designs and you must pick one deliberately. Fail-fast: let it propagate, treat any throwing subscriber as a bug, and rely on tests — right for internal, same-team events where hiding an error is worse than a crash. Isolated: iterate <code>GetInvocationList()</code> (cache the array — it allocates), wrap each call in try/catch, log with <code>Debug.LogException</code>, and continue — right for plugin points, mod hooks, and any bus where subscribers come from other modules. What you never do is silently swallow: an isolated dispatcher must still surface the failure. Bonus rules: no re-entrancy surprises (a subscriber raising the same event recursively — guard or queue), and no handlers on background threads for a Unity-object raiser.`,
+aru:`Multicast-вызов — обычный цикл без try/catch: подписчик N бросает, исключение вылетает из <code>Invoke</code>, подписчики N+1… не выполняются, и код вызывающего после raise тоже пропускается. В Unity именно так один сломанный UI-виджет «ломает урон»: слушатель <code>OnHealthChanged</code> бросает, а логика смерти, подписанная позже, не срабатывает. Есть два законных дизайна, и выбирать надо осознанно. Fail-fast: дать исключению пролететь, считать бросающего подписчика багом и полагаться на тесты — верно для внутренних событий одной команды, где спрятать ошибку хуже, чем упасть. Изоляция: итерировать <code>GetInvocationList()</code> (кэшировать массив — он аллоцируется), оборачивать каждый вызов в try/catch, логировать через <code>Debug.LogException</code> и идти дальше — верно для точек расширения, мод-хуков и любой шины, где подписчики приходят из других модулей. Чего не делают никогда — молча глотают: изолирующий диспетчер обязан показать сбой. Бонус-правила: без сюрпризов реентерабельности (подписчик рекурсивно поднимает то же событие — защита или очередь) и без обработчиков в фоновых потоках для Unity-объектов.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Событие вызывает подписчиков по очереди, как список дел. Если на третьем пункте случилась катастрофа, четвёртый и пятый просто не наступят — и никто вам об этом отдельно не скажет.</p>
+<h3>Два честных дизайна</h3>
+<pre><span class="cm">// Fail-fast: внутренние события, ошибка подписчика = баг, пусть падает громко</span>
+public event Action&lt;int&gt; OnHealthChanged;
+void Raise(int hp) =&gt; OnHealthChanged?.Invoke(hp);
+
+<span class="cm">// Изоляция: шина/точка расширения — каждый подписчик в своём try, список кэширован</span>
+sealed class SafeEvent&lt;T&gt;
+{
+    Action&lt;T&gt;[] snapshot = Array.Empty&lt;Action&lt;T&gt;&gt;();
+    bool dirty;
+    Action&lt;T&gt; handlers;
+
+    public void Add(Action&lt;T&gt; h)    { handlers += h; dirty = true; }
+    public void Remove(Action&lt;T&gt; h) { handlers -= h; dirty = true; }
+
+    public void Raise(T arg)
+    {
+        if (dirty)
+        {
+            var list = handlers?.GetInvocationList();
+            snapshot = list == null ? Array.Empty&lt;Action&lt;T&gt;&gt;() : Array.ConvertAll(list, d =&gt; (Action&lt;T&gt;)d);
+            dirty = false;
+        }
+        foreach (var h in snapshot)
+            try { h(arg); }
+            catch (Exception e) { Debug.LogException(e); }   <span class="cm">// показать, не спрятать</span>
+    }
+}</pre>
+<div class="tip">Снимок обновляется лениво по флагу <code>dirty</code>: аллокация массива только при изменении подписок, а не на каждый raise.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Исключение в подписчике останавливает остаток списка и код после raise. Для внутренних событий — fail-fast, для шин и точек расширения — изоляция по кэшированному снимку с логированием. Глотать молча нельзя. Отдельно слежу за реентерабельностью».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://learn.microsoft.com/en-us/dotnet/api/system.delegate.getinvocationlist" target="_blank">Delegate.GetInvocationList</a> <span>— поэлементная рассылка</span></li>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Debug.LogException.html" target="_blank">Debug.LogException</a> <span>— исключение с полным стеком в консоль и crash-репорт, а не строкой</span></li>
+</ul></div>`},
+{n:349,c:"C#",p:"mid",
+q:`ref returns and ref locals: how do you hand out a reference into an array or a struct field without copying, and what are the safety rules?`,
+qru:`ref-возвраты и ref-локальные: как отдать ссылку на элемент массива или поле структуры без копирования и какие здесь правила безопасности?`,
+a:`A method can return <code>ref T</code> (or <code>ref readonly T</code>) — an alias to storage that already exists — and the caller binds it with <code>ref var x = ref GetRef(i);</code>. Writes through the alias land in the original: no copy out, no copy back, which is the whole game for large structs (<code>Matrix4x4</code>, particle records, ECS-style component arrays). The compiler enforces that the referent outlives the reference: you may return a ref to an array element, a field of a class, a ref parameter, or a <code>Span&lt;T&gt;</code> element, but never to a local or a value-type temporary, and <code>ref struct</code> scoping rules stop a span from escaping the stack frame it points into. <code>Span&lt;T&gt;</code>'s indexer already returns <code>ref T</code>, so <code>array.AsSpan()[i].x = 1</code> is legal in Unity's .NET Standard 2.1 profile; <code>NativeList&lt;T&gt;.ElementAt</code> and <code>UnsafeUtility.ArrayElementAsRef</code> give the same for native containers. A <code>ref readonly</code> return is the read-only variant — the caller cannot mutate, and reading through it avoids the defensive copy you would pay on a large readonly struct. What it costs: aliasing invalidation — a ref into a <code>List&lt;T&gt;</code>'s backing array is dangling after the list grows, which is why <code>List&lt;T&gt;</code> deliberately has no ref indexer.`,
+aru:`Метод может возвращать <code>ref T</code> (или <code>ref readonly T</code>) — псевдоним уже существующего хранилища, — а вызывающий привязывает его через <code>ref var x = ref GetRef(i);</code>. Запись через псевдоним попадает в оригинал: ни копии наружу, ни копии обратно, что и есть вся суть для крупных структур (<code>Matrix4x4</code>, записи частиц, массивы компонентов в стиле ECS). Компилятор следит, чтобы объект пережил ссылку: можно вернуть ref на элемент массива, поле класса, ref-параметр или элемент <code>Span&lt;T&gt;</code>, но никогда на локальную переменную или временное значение, а правила области <code>ref struct</code> не дают span-у сбежать из фрейма стека, на который он указывает. Индексатор <code>Span&lt;T&gt;</code> уже возвращает <code>ref T</code>, поэтому <code>array.AsSpan()[i].x = 1</code> легален в профиле .NET Standard 2.1 Unity; <code>NativeList&lt;T&gt;.ElementAt</code> и <code>UnsafeUtility.ArrayElementAsRef</code> дают то же для нативных контейнеров. <code>ref readonly</code>-возврат — вариант только для чтения: вызывающий не может мутировать, а чтение через него избегает защитной копии крупной readonly-структуры. Цена: инвалидация псевдонимов — ref на внутренний массив <code>List&lt;T&gt;</code> висит в воздухе после роста списка, поэтому у <code>List&lt;T&gt;</code> намеренно нет ref-индексатора.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Обычный возврат структуры — это выдать ксерокопию. <code>ref</code>-возврат — показать пальцем на оригинал: «вот он, правь прямо здесь». Компилятор лишь проверяет, что оригинал не исчезнет раньше, чем вы уберёте палец.</p>
+<h3>Код</h3>
+<pre>struct Particle { public Vector3 pos, vel; public float life; }   <span class="cm">// 28 байт</span>
+Particle[] particles = new Particle[10_000];
+
+<span class="cm">// Без ref: копия 28 байт наружу, правка копии, копия обратно</span>
+var p = particles[i]; p.pos += p.vel * dt; particles[i] = p;
+
+<span class="cm">// С ref: работа на месте</span>
+ref Particle P(int i) =&gt; ref particles[i];
+ref var q = ref P(i);
+q.pos += q.vel * dt;
+
+<span class="cm">// Span даёт ref-индексатор бесплатно</span>
+var span = particles.AsSpan();
+span[i].life -= dt;
+
+<span class="cm">// Нельзя: ссылка на локальную — она умрёт вместе с методом</span>
+ref Particle Bad() { var tmp = new Particle(); return ref tmp; }   <span class="cm">// CS8168</span></pre>
+<div class="warn">Ref на элемент <code>List&lt;T&gt;</code>: если получить его через свой индексатор или unsafe, а потом список вырастет (<code>Add</code> переаллоцирует массив), ссылка укажет на старый, уже ничей массив. Правило: ref живёт не дольше одной итерации без изменений контейнера.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«<code>ref</code>-возврат — псевдоним на существующее хранилище: элемент массива, поле класса, элемент Span. Устраняет копирование крупных структур в горячих циклах. Компилятор запрещает ref на локальные; моя ответственность — не переживать рост контейнера. <code>ref readonly</code> — то же без права записи и без защитных копий».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/declarations#reference-variables" target="_blank">Reference variables (docs)</a> <span>— ref locals, ref returns, правила области</span></li>
+<li><a href="https://learn.microsoft.com/en-us/dotnet/api/system.span-1" target="_blank">Span&lt;T&gt;</a> <span>— ref-индексатор и правила ref struct</span></li>
+</ul></div>`},
+
+{n:350,c:"C#",p:"core",
+q:`Why can't you write list[i].x = 1 for a struct in a List<T> when it works for an array — and which "fixes" compile but silently modify a copy?`,
+qru:`Почему нельзя написать list[i].x = 1 для структуры в List<T>, хотя с массивом это работает, и какие «исправления» компилируются, но молча правят копию?`,
+a:`An array element is a <em>variable</em>: <code>arr[i]</code> denotes storage, so assigning to its field writes in place. <code>List&lt;T&gt;</code>'s indexer is a property: <code>list[i]</code> is a method call returning a copy, and assigning a field of a temporary would be lost — so the compiler refuses with CS1612 ("cannot modify the return value because it is not a variable"). Same for <code>dict[key].x</code> and <code>transform.position.x</code>. The dangerous cases are the ones that compile: <code>list[i].Move(dt)</code> calls a mutating method on the copy and throws the result away; <code>foreach (var p in list) p.x += 1;</code> mutates the iteration copy; a struct pulled out of a property into a <code>var</code> and edited is again a copy. Real fixes: copy-modify-write back (<code>var p = list[i]; p.x = 1; list[i] = p;</code>) — correct and explicit; use an array or <code>Span&lt;T&gt;</code> when you own the storage (<code>arr.AsSpan()[i].x = 1</code>); a container exposing a <code>ref</code> indexer (<code>NativeList.ElementAt</code>, your own); or reconsider — mutable structs inside a list are usually a sign the data wants to be arrays of components. Note <code>CollectionsMarshal.AsSpan(list)</code> is the .NET 5+ answer and is not in Unity's .NET Standard 2.1 profile.`,
+aru:`Элемент массива — <em>переменная</em>: <code>arr[i]</code> обозначает хранилище, и присваивание его полю пишет на место. Индексатор <code>List&lt;T&gt;</code> — свойство: <code>list[i]</code> это вызов метода, возвращающий копию, и присваивание полю временного значения потерялось бы, поэтому компилятор отказывает с CS1612 («нельзя изменить возвращаемое значение, это не переменная»). То же для <code>dict[key].x</code> и <code>transform.position.x</code>. Опасны те случаи, что компилируются: <code>list[i].Move(dt)</code> зовёт мутирующий метод на копии и выбрасывает результат; <code>foreach (var p in list) p.x += 1;</code> правит копию итерации; структура, вытащенная из свойства в <code>var</code> и отредактированная, — снова копия. Настоящие исправления: копия — правка — запись обратно (<code>var p = list[i]; p.x = 1; list[i] = p;</code>) — корректно и явно; массив или <code>Span&lt;T&gt;</code>, когда хранилище ваше (<code>arr.AsSpan()[i].x = 1</code>); контейнер с <code>ref</code>-индексатором (<code>NativeList.ElementAt</code>, свой); либо пересмотреть модель — изменяемые структуры в списке обычно намекают, что данные хотят быть массивами компонентов. <code>CollectionsMarshal.AsSpan(list)</code> — ответ для .NET 5+, в профиле .NET Standard 2.1 Unity его нет.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Массив отдаёт вам саму ячейку, список — её фотокопию. Написать на фотокопии можно, но в шкафу от этого ничего не изменится. Компилятор ловит только очевидный случай (присваивание полю); вызов метода на копии он пропустит.</p>
+<h3>Что компилируется и что из этого работает</h3>
+<pre>struct Unit { public Vector3 pos; public void Move(Vector3 d) =&gt; pos += d; }
+List&lt;Unit&gt; list = ...;  Unit[] arr = ...;
+
+arr[i].pos.x = 1;              <span class="cm">// OK, пишет на место — элемент массива это переменная</span>
+list[i].pos.x = 1;             <span class="cm">// CS1612 — компилятор спас</span>
+list[i].Move(step);            <span class="cm">// компилируется, двигает КОПИЮ — тихий баг</span>
+foreach (var u in list) u.Move(step);   <span class="cm">// то же самое, копия итерации</span>
+
+<span class="cm">// Честные варианты</span>
+var u = list[i]; u.Move(step); list[i] = u;      <span class="cm">// явно</span>
+arr.AsSpan()[i].Move(step);                      <span class="cm">// Span: ref-индексатор</span>
+for (int i = 0; i &lt; arr.Length; i++) { ref var r = ref arr[i]; r.Move(step); }</pre>
+<div class="tip">Анализаторы (например, правило про «mutable struct» в Roslyn-анализаторах или Rider-инспекция «struct method called on copy») подсвечивают второй и третий случаи — включите их, если в проекте есть изменяемые структуры.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Индексатор списка — свойство, возвращает копию; массив — переменную. Присваивание полю копии компилятор запрещает, вызов мутирующего метода — нет, и это тихий баг. Лечу копией с записью обратно, Span/массивом или ref-индексатором; чаще всего — меняю модель данных».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/misc/cs1612" target="_blank">CS1612 (docs)</a> <span>— формулировка и обход</span></li>
+<li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/struct" target="_blank">Structure types</a> <span>— семантика копирования и readonly-члены</span></li>
+</ul></div>`},
+
+{n:351,c:"C#",p:"mid",
+q:`checked vs unchecked arithmetic: where do games rely on integer wraparound, where does overflow bite, and what does float do instead of overflowing?`,
+qru:`checked и unchecked арифметика: где игры опираются на переполнение целых, где оно кусается и что вместо переполнения делает float?`,
+a:`C# integer arithmetic is <em>unchecked</em> by default at runtime: <code>int.MaxValue + 1</code> silently wraps to <code>int.MinValue</code>; only constant expressions are checked at compile time, and <code>checked { }</code> / the <code>-checked</code> compiler flag turn on <code>OverflowException</code>. Games rely on wraparound on purpose in hashes (FNV-1a's multiply must wrap — write <code>unchecked</code> so constant folding does not reject it), xorshift/PCG random generators, ring-buffer indices and sequence numbers in netcode (where "newer than" is computed with wrapping subtraction). It bites where a number silently means "amount": score × multiplier, XP curves, currency in <code>int</code>, milliseconds in <code>int</code> (<code>Environment.TickCount</code> wraps after 24.9 days — a classic server/soak-test bug; use <code>TickCount64</code> or <code>Stopwatch</code>), and <code>Math.Abs(int.MinValue)</code>, which throws. Rule: money, scores and timers in <code>long</code>, plus explicit clamps at the top of the range. Floats never overflow: they go to <code>±Infinity</code>, and invalid operations produce <code>NaN</code>, which propagates through every subsequent operation, compares unequal to everything including itself, and turns a transform into an object that vanishes and a rigidbody into a physics explosion. Guard with <code>float.IsFinite</code> at the boundaries (input, network, save data), and treat a NaN in the profiler-side asserts as a bug at its source, not where it surfaced.`,
+aru:`Целочисленная арифметика C# по умолчанию во время выполнения <em>unchecked</em>: <code>int.MaxValue + 1</code> молча заворачивается в <code>int.MinValue</code>; на этапе компиляции проверяются только константные выражения, а <code>checked { }</code> или флаг компилятора <code>-checked</code> включают <code>OverflowException</code>. Игры опираются на заворачивание намеренно: в хэшах (умножение FNV-1a обязано заворачиваться — пишите <code>unchecked</code>, чтобы свёртка констант не отвергла код), в генераторах xorshift/PCG, в индексах кольцевых буферов и порядковых номерах в netcode (где «новее чем» считается заворачивающимся вычитанием). Кусается там, где число молча означает «количество»: счёт × множитель, кривые опыта, валюта в <code>int</code>, миллисекунды в <code>int</code> (<code>Environment.TickCount</code> заворачивается через 24,9 дня — классический баг серверов и soak-тестов; берите <code>TickCount64</code> или <code>Stopwatch</code>), и <code>Math.Abs(int.MinValue)</code>, который бросает. Правило: деньги, счёт и таймеры — в <code>long</code>, плюс явные клампы у верхней границы. Float не переполняется никогда: он уходит в <code>±Infinity</code>, а некорректные операции дают <code>NaN</code>, который распространяется через все последующие операции, не равен ничему, включая себя, и превращает transform в исчезнувший объект, а rigidbody — во взрыв физики. Защищайтесь <code>float.IsFinite</code> на границах (ввод, сеть, сейвы) и считайте NaN багом в его источнике, а не там, где он всплыл.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Целое число — одометр: после 999999 идёт 000000, и никто не сигналит. Float — другой мир: у него есть «бесконечность» и «не число», и это «не число» заразно — одна операция с NaN, и весь расчёт становится NaN.</p>
+<h3>Где это в коде</h3>
+<pre><span class="cm">// Намеренное заворачивание: FNV-1a, без unchecked константа 16777619 * ... не скомпилируется</span>
+static int Fnv1a(string s)
+{
+    unchecked
+    {
+        int h = (int)2166136261;
+        foreach (char c in s) h = (h ^ c) * 16777619;
+        return h;
+    }
+}
+
+<span class="cm">// Ненамеренное: 24,9 дня аптайма — и «прошедшее время» становится отрицательным</span>
+int startMs = Environment.TickCount;
+int elapsed = Environment.TickCount - startMs;      <span class="cm">// ломается при заворачивании; используйте TickCount64</span>
+
+<span class="cm">// NaN: одна ошибка — и объект исчез из мира</span>
+var dir = (target - pos).normalized;               <span class="cm">// (0,0,0).normalized == (0,0,0), но</span>
+var look = Quaternion.LookRotation(dir);           <span class="cm">// LookRotation(zero) даёт identity+warning, а</span>
+float t = 0f / 0f;                                 <span class="cm">// вот это NaN — и transform.position = NaN → объект пропал</span>
+Debug.Assert(float.IsFinite(t));</pre>
+<div class="tip">В Unity <code>NaN</code> в позиции чаще всего рождается из деления на нулевую длину, <code>Mathf.Acos</code> от 1.0000001 или <code>Mathf.Sqrt</code> отрицательного из-за погрешности float. Clamp перед acos/sqrt — обязательная привычка.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Целые по умолчанию unchecked: хэши и RNG на этом построены, деньги и таймеры на этом ломаются — их в long. Float не переполняется, а даёт Infinity/NaN; NaN заразен и не равен себе, поэтому <code>float.IsFinite</code> на границах данных и clamp перед acos/sqrt».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/checked-and-unchecked" target="_blank">checked and unchecked (docs)</a> <span>— правила по умолчанию и константные выражения</span></li>
+<li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/floating-point-numeric-types" target="_blank">Floating-point numeric types</a> <span>— Infinity, NaN, точность</span></li>
+</ul></div>`},
+
+{n:352,c:"C#",p:"core",
+q:`Integer division and modulo with negatives, float-to-int conversion and rounding: the grid-index bugs everyone ships once.`,
+qru:`Целочисленное деление и остаток с отрицательными числами, преобразование float в int и округление: баги с индексами сетки, которые каждый выпускает по разу.`,
+a:`C# <code>/</code> on integers truncates toward zero and <code>%</code> keeps the sign of the dividend: <code>-7 / 2 == -3</code> and <code>-7 % 2 == -1</code>. For a grid, "which cell is x in" needs the <em>floor</em>, so a position of -0.5 must map to cell -1, not 0 — use <code>Mathf.FloorToInt(x / cellSize)</code>, never <code>(int)(x / cellSize)</code>, because the cast also truncates toward zero and turns cells -1 and 0 into one double-wide cell straddling the origin. Wrapping an index into a range needs a positive modulo: <code>((i % n) + n) % n</code>, or <code>i &amp; (n - 1)</code> when n is a power of two (two's complement makes that correct for negatives too), or <code>Mathf.Repeat</code> for floats. <code>&gt;&gt;</code> on a negative int is an arithmetic shift and floors (<code>-7 &gt;&gt; 1 == -4</code>), which is why bit-shift "division" and <code>/ 2</code> disagree on negatives. Rounding: <code>Mathf.Round</code>/<code>Math.Round</code> use banker's rounding — <code>Mathf.RoundToInt(2.5f) == 2</code>, <code>3.5f → 4</code> — so "round half up" is <code>Mathf.FloorToInt(x + 0.5f)</code>; <code>CeilToInt</code> is for "how many pages/chunks". Float-to-int casts of out-of-range or NaN values are unspecified per platform (<code>int.MinValue</code> on x86, saturating on ARM) — clamp before casting anything that comes from the outside.`,
+aru:`Целочисленное <code>/</code> в C# отбрасывает к нулю, а <code>%</code> сохраняет знак делимого: <code>-7 / 2 == -3</code> и <code>-7 % 2 == -1</code>. Для сетки вопрос «в какой клетке x» требует <em>floor</em>: позиция -0.5 должна попасть в клетку -1, а не 0 — используйте <code>Mathf.FloorToInt(x / cellSize)</code> и никогда <code>(int)(x / cellSize)</code>: приведение тоже отбрасывает к нулю и склеивает клетки -1 и 0 в одну двойной ширины вокруг начала координат. Заворачивание индекса в диапазон требует положительного остатка: <code>((i % n) + n) % n</code>, либо <code>i &amp; (n - 1)</code> для степени двойки (дополнительный код делает это верным и для отрицательных), либо <code>Mathf.Repeat</code> для float. <code>&gt;&gt;</code> отрицательного int — арифметический сдвиг, он делает floor (<code>-7 &gt;&gt; 1 == -4</code>), поэтому «деление сдвигом» и <code>/ 2</code> расходятся на отрицательных. Округление: <code>Mathf.Round</code>/<code>Math.Round</code> используют банковское — <code>Mathf.RoundToInt(2.5f) == 2</code>, <code>3.5f → 4</code>, — поэтому «половина вверх» это <code>Mathf.FloorToInt(x + 0.5f)</code>; <code>CeilToInt</code> — для «сколько страниц/чанков». Приведение float→int вне диапазона или NaN не специфицировано и зависит от платформы (<code>int.MinValue</code> на x86, насыщение на ARM) — клампуйте перед приведением всё, что пришло извне.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Компьютер делит «к нулю», а сетка живёт «к минус бесконечности». Пока всё положительное, разницы нет; первая отрицательная координата — и две клетки у начала координат сливаются в одну. Округление «половина к чётному» — вторая ловушка того же сорта.</p>
+<h3>Правильные формулы</h3>
+<pre><span class="cm">// Индекс клетки: floor, не truncate</span>
+int cx = Mathf.FloorToInt(pos.x / cellSize);        <span class="cm">// -0.5 → -1  ✔</span>
+int bad = (int)(pos.x / cellSize);                  <span class="cm">// -0.5 →  0  ✘ (двойная клетка у нуля)</span>
+
+<span class="cm">// Положительный остаток для кольцевых индексов и «предыдущий кадр анимации»</span>
+static int Mod(int i, int n) =&gt; ((i % n) + n) % n;  <span class="cm">// Mod(-1, 8) == 7</span>
+int fast = i &amp; (n - 1);                             <span class="cm">// только если n — степень двойки</span>
+
+<span class="cm">// Округление</span>
+Mathf.RoundToInt(2.5f);            <span class="cm">// 2 — банковское</span>
+Mathf.FloorToInt(2.5f + 0.5f);     <span class="cm">// 3 — «половина вверх»</span>
+int pages = (count + pageSize - 1) / pageSize;      <span class="cm">// ceil для положительных без float</span>
+
+<span class="cm">// Сдвиг делает floor, деление — truncate</span>
+-7 / 2;      <span class="cm">// -3</span>
+-7 &gt;&gt; 1;     <span class="cm">// -4</span></pre>
+<div class="tip">Проверяйте сетки тестом с отрицательными координатами и координатами ровно на границе клетки (<code>x == k * cellSize</code>): оба случая ловят truncate и ошибки «&lt;= против &lt;».</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Деление и <code>%</code> в C# — к нулю, для сеток нужен floor и положительный остаток. Приведение float→int тоже к нулю. <code>Round</code> — банковское, половина вверх — floor(x + 0.5). Значения извне клампую перед приведением: поведение при NaN и вне диапазона платформозависимо».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/arithmetic-operators#integer-division" target="_blank">Arithmetic operators — integer division and remainder</a> <span>— формальная семантика</span></li>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Mathf.Round.html" target="_blank">Mathf.Round</a> <span>— прямо в документации: «к чётному»</span></li>
+<li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/numeric-conversions" target="_blank">Numeric conversions</a> <span>— поведение явных преобразований, включая неспецифицированные случаи</span></li>
+</ul></div>`},
+
+{n:353,c:"Core",p:"core",
+q:`Awaitable in Unity 6: what is it, how does it differ from Task and UniTask, and what are the rules around pooling, threads and cancellation?`,
+qru:`Awaitable в Unity 6: что это, чем отличается от Task и UniTask и какие правила у пулинга, потоков и отмены?`,
+a:`<code>UnityEngine.Awaitable</code> is the engine's own awaitable type (2023.1+): a class instance, but <em>pooled</em> — completed awaitables return to a pool, so awaiting one twice or storing it past completion is a bug by contract (single consumer, single await). It ships the engine-aware waits that <code>Task</code> lacks: <code>NextFrameAsync</code>, <code>WaitForSecondsAsync</code>, <code>FixedUpdateAsync</code>, <code>EndOfFrameAsync</code>, <code>FromAsyncOperation</code>, plus thread switching — <code>await Awaitable.BackgroundThreadAsync()</code> moves the continuation to the thread pool and <code>await Awaitable.MainThreadAsync()</code> brings it back, which is the sanctioned way to do work off the main thread and touch Unity objects afterwards. Continuations of an <code>async Awaitable</code> run on the main thread by default (through Unity's synchronization context), and cancellation is first-class: most factory methods take a <code>CancellationToken</code>, and pairing them with <code>destroyCancellationToken</code> / <code>Application.exitCancellationToken</code> stops the "continuation on a destroyed object" class of bugs. Versus <code>Task</code>: no thread-pool default, engine waits, less allocation, but no <code>WhenAll</code>/<code>WhenAny</code> combinators and no ConfigureAwait story. Versus UniTask: UniTask is struct-based (zero allocation), PlayerLoop-driven, and has a large combinator library and tracker window; Awaitable is built-in with no dependency and good enough for most gameplay code. <code>AwaitableCompletionSource&lt;T&gt;</code> bridges callback APIs, exactly like <code>TaskCompletionSource</code>.`,
+aru:`<code>UnityEngine.Awaitable</code> — собственный awaitable-тип движка (2023.1+): экземпляр класса, но <em>пулируемый</em>: завершённые awaitable возвращаются в пул, поэтому ждать один дважды или хранить его после завершения — баг по контракту (один потребитель, один await). В нём есть ожидания, знающие о движке, которых нет у <code>Task</code>: <code>NextFrameAsync</code>, <code>WaitForSecondsAsync</code>, <code>FixedUpdateAsync</code>, <code>EndOfFrameAsync</code>, <code>FromAsyncOperation</code>, плюс переключение потоков — <code>await Awaitable.BackgroundThreadAsync()</code> уводит продолжение в пул потоков, а <code>await Awaitable.MainThreadAsync()</code> возвращает обратно; это санкционированный способ сделать работу вне главного потока и потом трогать Unity-объекты. Продолжения <code>async Awaitable</code> по умолчанию идут в главном потоке (через контекст синхронизации Unity), отмена первоклассная: большинство фабричных методов принимают <code>CancellationToken</code>, и связка с <code>destroyCancellationToken</code> / <code>Application.exitCancellationToken</code> закрывает класс багов «продолжение на уничтоженном объекте». Против <code>Task</code>: нет пула потоков по умолчанию, есть ожидания движка, меньше аллокаций, но нет комбинаторов <code>WhenAll</code>/<code>WhenAny</code> и истории с ConfigureAwait. Против UniTask: UniTask на структурах (ноль аллокаций), едет на PlayerLoop, имеет большую библиотеку комбинаторов и окно трекера; Awaitable встроен, без зависимости и достаточен для большинства геймплейного кода. <code>AwaitableCompletionSource&lt;T&gt;</code> стыкует коллбэк-API — ровно как <code>TaskCompletionSource</code>.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Это «Task, который знает про кадры Unity»: умеет ждать следующий кадр, FixedUpdate, конец кадра и умеет прыгать между главным потоком и фоном. Взамен просит одного: не ждать один и тот же объект дважды, потому что после завершения он уходит в пул и достаётся кому-то другому.</p>
+<h3>Канонический пример</h3>
+<pre>async Awaitable LoadLevelAsync(string id, CancellationToken ct)
+{
+    await Awaitable.BackgroundThreadAsync();               <span class="cm">// тяжёлый парсинг — не в главном потоке</span>
+    var data = ParseLevel(File.ReadAllBytes(PathFor(id)));
+
+    await Awaitable.MainThreadAsync();                     <span class="cm">// обратно: дальше Unity API</span>
+    ct.ThrowIfCancellationRequested();
+    BuildScene(data);
+
+    await Awaitable.NextFrameAsync(ct);                    <span class="cm">// дать кадру отрисоваться</span>
+    await Awaitable.WaitForSecondsAsync(0.5f, ct);
+}
+
+<span class="cm">// Вызов с привязкой к времени жизни объекта</span>
+async void Start() =&gt; await LoadLevelAsync("lvl_03", destroyCancellationToken);
+
+<span class="cm">// Мост из коллбэк-API</span>
+Awaitable&lt;Texture2D&gt; Download(string url)
+{
+    var acs = new AwaitableCompletionSource&lt;Texture2D&gt;();
+    StartDownload(url, tex =&gt; acs.SetResult(tex), err =&gt; acs.SetException(err));
+    return acs.Awaitable;
+}</pre>
+<div class="warn"><code>var a = Awaitable.NextFrameAsync(); await a; await a;</code> — второй await работает с объектом, который уже вернулся в пул и, возможно, выдан другому вызову. Правило: awaitable всегда ждут ровно один раз и прямо там, где получили.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Awaitable — встроенный пулируемый await с ожиданиями движка и переключением потоков через <code>BackgroundThreadAsync</code>/<code>MainThreadAsync</code>. Один await на объект. Отмена через токены, в том числе <code>destroyCancellationToken</code>. UniTask богаче (ноль аллокаций, комбинаторы), Awaitable — без зависимости; в новом проекте начинаю с Awaitable и беру UniTask, когда нужны WhenAll/трекер».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/Manual/async-await-support.html" target="_blank">Unity Manual — Await support</a> <span>— обзор, ограничения, пулинг</span></li>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Awaitable.html" target="_blank">Awaitable (Script Reference)</a> <span>— полный список фабричных методов</span></li>
+<li><a href="https://github.com/Cysharp/UniTask" target="_blank">UniTask</a> <span>— README с сравнением и таблицей возможностей</span></li>
+</ul></div>`},
+
+{n:354,c:"Core",p:"core",
+q:`[SerializeReference]: what does polymorphic serialization enable, what does it cost, and what are the missing-type and refactoring traps?`,
+qru:`[SerializeReference]: что даёт полиморфная сериализация, сколько стоит и какие ловушки с пропавшими типами и рефакторингом?`,
+a:`Plain <code>[SerializeField]</code> on a class-typed field serializes it <em>by value</em>: the declared type's fields are written inline, subclass data is sliced away, <code>null</code> becomes a default-constructed instance, and two fields pointing at one object become two copies. <code>[SerializeReference]</code> serializes <em>by reference</em> with the concrete type name recorded: the field can hold any subclass or interface implementation, can be genuinely <code>null</code>, and several fields inside the same asset can share one instance (a graph, not a tree) — the mechanism behind node-based data (behaviour trees, ability effects, dialogue) without one ScriptableObject asset per node. Costs: larger YAML with a managed-references table, slower (de)serialization, no support for <code>UnityEngine.Object</code>-derived types (those stay <code>[SerializeField]</code> asset references), and the Inspector cannot pick a concrete type by itself — you need a property drawer (own, Odin, or the <code>SubclassSelector</code>-style attributes floating around). The trap that ships: the serialized data stores the type by assembly-qualified name, so renaming, moving between namespaces/assemblies, or deleting a class makes every instance a "missing type"; Unity 2021.2+ preserves the data as an opaque blob until the type comes back, and <code>[MovedFrom]</code> lets a rename resolve — put it on every renamed type before the rename lands in version control. Shared references do not cross asset boundaries; references to another asset are still <code>UnityEngine.Object</code> links.`,
+aru:`Обычный <code>[SerializeField]</code> на поле класса сериализует <em>по значению</em>: поля объявленного типа пишутся inline, данные подкласса срезаются, <code>null</code> превращается в экземпляр по умолчанию, а два поля, указывающих на один объект, становятся двумя копиями. <code>[SerializeReference]</code> сериализует <em>по ссылке</em> с записью имени конкретного типа: поле может держать любой подкласс или реализацию интерфейса, может быть по-настоящему <code>null</code>, а несколько полей внутри одного ассета могут делить один экземпляр (граф, а не дерево) — механизм для узловых данных (деревья поведения, эффекты способностей, диалоги) без отдельного ScriptableObject на узел. Цена: больший YAML с таблицей managed references, медленнее (де)сериализация, нет поддержки типов от <code>UnityEngine.Object</code> (они остаются <code>[SerializeField]</code>-ссылками на ассеты), и инспектор сам не умеет выбирать конкретный тип — нужен property drawer (свой, Odin или атрибуты в духе <code>SubclassSelector</code>). Ловушка, которая доезжает до прода: данные хранят тип по assembly-qualified имени, поэтому переименование, перенос между пространствами имён/сборками или удаление класса делает каждый экземпляр «missing type»; Unity 2021.2+ сохраняет данные непрозрачным блобом до возвращения типа, а <code>[MovedFrom]</code> позволяет переименованию разрешиться — ставьте его на каждый переименованный тип до того, как переименование попадёт в систему контроля версий. Общие ссылки не пересекают границу ассета; ссылки на другой ассет — по-прежнему связи через <code>UnityEngine.Object</code>.`,
+d:`
+<h3>Простыми словами</h3>
+<p><code>SerializeField</code> хранит «содержимое коробки»: сколько ни ссылайся, при загрузке получишь копии, а подкласс обрежется до базового. <code>SerializeReference</code> хранит «номер коробки и её точный тип»: можно ссылаться на одну коробку из разных мест, класть в поле наследников и оставлять пустым. Плата — если коробку переименовали, номер перестаёт находиться.</p>
+<h3>Код</h3>
+<pre>public abstract class Effect { public abstract void Apply(Unit target); }
+[Serializable] public sealed class Damage : Effect { public int amount; public override void Apply(Unit t) =&gt; t.Hit(amount); }
+[Serializable] public sealed class Stun   : Effect { public float seconds; public override void Apply(Unit t) =&gt; t.Stun(seconds); }
+
+[CreateAssetMenu] public class Ability : ScriptableObject
+{
+    [SerializeField]      Effect broken;      <span class="cm">// abstract — не сериализуется вовсе; у sealed-класса срежет наследников</span>
+    [SerializeReference]  Effect[] effects;   <span class="cm">// Damage, Stun, null — всё честно, тип записан</span>
+}
+
+<span class="cm">// Рефакторинг без потери данных: атрибут ставится ДО переименования</span>
+[MovedFrom(true, sourceNamespace: "Game.Effects", sourceClassName: "DamageEffect")]
+[Serializable] public sealed class Damage : Effect { ... }</pre>
+<div class="warn">Проверьте в CI: любой ассет с <code>managedReferences</code>, где после сборки есть «missing type», — блокер. Unity сохранит блоб, но геймплей получит <code>null</code> вместо эффекта и промолчит.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«По значению — копии, срез до объявленного типа, нет null. По ссылке — полиморфизм, общие экземпляры, честный null, ценой размера и скорости. Не для UnityEngine.Object. Главный риск — переименование типов: <code>[MovedFrom]</code> и проверка missing types в CI».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/SerializeReference.html" target="_blank">SerializeReference (Script Reference)</a> <span>— возможности и ограничения списком</span></li>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/Manual/script-serialization.html" target="_blank">Script serialization</a> <span>— правила сериализации, на которых это построено</span></li>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Scripting.APIUpdating.MovedFromAttribute.html" target="_blank">MovedFromAttribute</a> <span>— как переименовывать без потери данных</span></li>
+</ul></div>`},
+
+{n:355,c:"Core",p:"mid",
+q:`ISerializationCallbackReceiver: how do you serialize a Dictionary, and what are the threading, ordering and cost rules for OnBeforeSerialize/OnAfterDeserialize?`,
+qru:`ISerializationCallbackReceiver: как сериализовать Dictionary и какие правила потоков, порядка и стоимости у OnBeforeSerialize/OnAfterDeserialize?`,
+a:`Unity's serializer only understands fields of supported types (primitives, serializable structs/classes, arrays and <code>List&lt;T&gt;</code> of those, <code>UnityEngine.Object</code> references) — no <code>Dictionary</code>, no interfaces by value, no multidimensional arrays. <code>ISerializationCallbackReceiver</code> is the escape hatch: in <code>OnBeforeSerialize</code> you flatten your runtime structure into serializable fields (two parallel lists of keys and values), and in <code>OnAfterDeserialize</code> you rebuild the dictionary from them. The rules that make it bite: both callbacks can run on a <em>loading thread</em>, not the main thread, so no Unity API beyond what is explicitly thread-safe — no <code>GetComponent</code>, no <code>Instantiate</code>, no touching other objects (they may not be deserialized yet); <code>OnAfterDeserialize</code> runs before <code>Awake</code>, so anything needing the scene belongs in <code>Awake</code>/<code>OnEnable</code>; and in the Editor they fire constantly — every Inspector repaint, undo, prefab save, domain reload — so they must be cheap, allocation-light and idempotent, never log, and never mutate state in a way that changes the next serialization (that produces dirty assets that "change themselves"). Duplicate keys are a data problem: choose a policy (last wins, or keep a validation error) and surface it. Alternatives worth naming: <code>[SerializeReference]</code> does not help here; a sorted pair list searched by binary search is often all you need; Odin and several open packages wrap the same trick in a drawer.`,
+aru:`Сериализатор Unity понимает только поля поддерживаемых типов (примитивы, сериализуемые структуры/классы, массивы и <code>List&lt;T&gt;</code> из них, ссылки на <code>UnityEngine.Object</code>) — ни <code>Dictionary</code>, ни интерфейсов по значению, ни многомерных массивов. <code>ISerializationCallbackReceiver</code> — аварийный выход: в <code>OnBeforeSerialize</code> вы раскладываете рабочую структуру в сериализуемые поля (два параллельных списка ключей и значений), а в <code>OnAfterDeserialize</code> собираете словарь обратно. Правила, на которых это кусается: оба коллбэка могут выполняться в <em>потоке загрузки</em>, а не в главном, поэтому никакого Unity API, кроме явно потокобезопасного — ни <code>GetComponent</code>, ни <code>Instantiate</code>, ни обращений к другим объектам (они могут быть ещё не десериализованы); <code>OnAfterDeserialize</code> идёт до <code>Awake</code>, поэтому всё, что требует сцены, живёт в <code>Awake</code>/<code>OnEnable</code>; а в редакторе они срабатывают постоянно — каждая перерисовка инспектора, undo, сохранение префаба, перезагрузка домена, — так что должны быть дешёвыми, почти без аллокаций и идемпотентными, не логировать и не менять состояние так, чтобы следующая сериализация отличалась (иначе появляются грязные ассеты, «меняющие сами себя»). Дубликаты ключей — проблема данных: выберите политику (последний побеждает или ошибка валидации) и покажите её. Альтернативы, которые стоит назвать: <code>[SerializeReference]</code> здесь не помогает; отсортированный список пар с бинарным поиском часто закрывает потребность; Odin и несколько открытых пакетов оборачивают тот же трюк в drawer.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Unity не умеет сохранять словарь, поэтому вы обещаете: «перед сохранением я разложу его в два списка, после загрузки соберу обратно». Обещание выполняется в неудобный момент — возможно, в чужом потоке и до того, как сцена существует, — поэтому внутри можно только перекладывать данные.</p>
+<h3>Реализация</h3>
+<pre>[Serializable]
+public class SerializableDictionary&lt;TKey, TValue&gt; : ISerializationCallbackReceiver
+{
+    [SerializeField] List&lt;TKey&gt;   keys   = new();
+    [SerializeField] List&lt;TValue&gt; values = new();
+    readonly Dictionary&lt;TKey, TValue&gt; map = new();
+
+    public Dictionary&lt;TKey, TValue&gt; Map =&gt; map;
+
+    public void OnBeforeSerialize()          <span class="cm">// в редакторе — сотни раз в минуту: без аллокаций, без логов</span>
+    {
+        keys.Clear(); values.Clear();
+        foreach (var kv in map) { keys.Add(kv.Key); values.Add(kv.Value); }
+    }
+
+    public void OnAfterDeserialize()         <span class="cm">// возможно, поток загрузки: только своя память</span>
+    {
+        map.Clear();
+        int n = Math.Min(keys.Count, values.Count);
+        for (int i = 0; i &lt; n; i++) map[keys[i]] = values[i];   <span class="cm">// политика: последний ключ побеждает</span>
+    }
+}</pre>
+<div class="warn">Никаких <code>Debug.LogWarning("duplicate key")</code> внутри: это выполнится при каждой перерисовке инспектора. Валидацию дубликатов делайте в <code>OnValidate</code> или в редакторском drawer-е.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Сериализатор не знает словарей — раскладываю в два списка через <code>ISerializationCallbackReceiver</code>. Коллбэки могут идти не в главном потоке и до Awake, в редакторе — постоянно: только перекладывание данных, дёшево, идемпотентно, без Unity API. Политика дубликатов — явная».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/ISerializationCallbackReceiver.html" target="_blank">ISerializationCallbackReceiver</a> <span>— официальный пример именно со словарём и предупреждения о потоках</span></li>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/Manual/script-serialization-errors.html" target="_blank">Script serialization errors</a> <span>— что нельзя вызывать из коллбэков сериализации и почему</span></li>
+</ul></div>`},
+
+{n:356,c:"Physics",p:"core",
+q:`Physics.autoSyncTransforms and Physics.SyncTransforms: why does a raycast right after moving a transform hit the old position, and what does auto sync cost?`,
+qru:`Physics.autoSyncTransforms и Physics.SyncTransforms: почему raycast сразу после перемещения transform попадает в старую позицию и сколько стоит автосинхронизация?`,
+a:`The physics scene keeps its own copy of collider poses. Writing <code>transform.position</code> marks the transform dirty, but PhysX does not learn about it until the next simulation step — or until <code>Physics.SyncTransforms()</code> is called. Since Unity 2017.2 <code>autoSyncTransforms</code> defaults to <code>false</code>, so "move the object, then <code>Raycast</code>/<code>OverlapSphere</code> in the same frame" queries yesterday's colliders: the ground check under a just-teleported player fails, the newly placed wall is not there yet. Setting <code>autoSyncTransforms = true</code> restores the old behaviour — every physics query first flushes all dirty transforms — and its cost scales with how many transforms changed since the last flush, so a scene that moves hundreds of colliders per frame and runs dozens of queries pays a sync per query. The disciplined pattern: move things, call <code>Physics.SyncTransforms()</code> once, then query; or, better, keep motion in <code>FixedUpdate</code> through the <code>Rigidbody</code> API, which the step syncs automatically. Related switches a senior should name: <code>Physics.simulationMode</code> (FixedUpdate / Update / Script, 2022.2+) decides <em>when</em> the step runs, and <code>Physics.Simulate</code> lets you step by hand for replays, rewinds and server ticks.`,
+aru:`Физическая сцена держит собственную копию поз коллайдеров. Запись в <code>transform.position</code> помечает transform грязным, но PhysX узнаёт об этом только на следующем шаге симуляции — или при вызове <code>Physics.SyncTransforms()</code>. С Unity 2017.2 <code>autoSyncTransforms</code> по умолчанию <code>false</code>, поэтому «подвинуть объект и тут же <code>Raycast</code>/<code>OverlapSphere</code> в том же кадре» опрашивает вчерашние коллайдеры: проверка земли под только что телепортированным игроком не проходит, только что поставленной стены ещё нет. <code>autoSyncTransforms = true</code> возвращает старое поведение — каждый физический запрос сначала сбрасывает все грязные transform-ы, — и его цена растёт с числом изменившихся с последнего сброса transform-ов, так что сцена, двигающая сотни коллайдеров за кадр и делающая десятки запросов, платит синхронизацию на каждый запрос. Дисциплинированный паттерн: подвинуть всё, один раз вызвать <code>Physics.SyncTransforms()</code>, потом запрашивать; а лучше — держать движение в <code>FixedUpdate</code> через API <code>Rigidbody</code>, которое шаг синхронизирует сам. Смежные переключатели, которые сеньор должен назвать: <code>Physics.simulationMode</code> (FixedUpdate / Update / Script, 2022.2+) решает, <em>когда</em> идёт шаг, а <code>Physics.Simulate</code> позволяет шагать вручную для реплеев, перемоток и серверных тиков.`,
+d:`
+<h3>Простыми словами</h3>
+<p>У физики своя карта мира, и она перерисовывает её раз в шаг. Передвинули объект в Unity — на карте физики он ещё на старом месте, пока не наступит шаг или пока вы не скажете «перерисуй» явно.</p>
+<h3>Симптом и лечение</h3>
+<pre><span class="cm">// Симптом: телепорт и сразу проверка земли — луч бьёт из старой позиции коллайдера</span>
+transform.position = spawn.position;
+bool grounded = Physics.Raycast(transform.position, Vector3.down, 1.1f);   <span class="cm">// часто false</span>
+
+<span class="cm">// Лечение 1: явная синхронизация один раз после пачки перемещений</span>
+foreach (var p in placedWalls) p.transform.position = p.target;
+Physics.SyncTransforms();
+bool blocked = Physics.CheckBox(center, halfExtents);
+
+<span class="cm">// Лечение 2 (правильное для тел): двигать через Rigidbody в FixedUpdate — шаг синхронизирует сам</span>
+void FixedUpdate() =&gt; body.MovePosition(body.position + move * Time.fixedDeltaTime);
+
+<span class="cm">// Для телепорта тела: позиция тела + сброс скорости, и только потом запросы</span>
+body.position = spawn.position; body.linearVelocity = Vector3.zero;
+Physics.SyncTransforms();</pre>
+<div class="tip">Диагностика: включите <code>Physics.autoSyncTransforms = true</code> на минуту — если баг исчез, это оно. Потом верните <code>false</code> и поставьте один явный <code>SyncTransforms</code> в нужное место: включённый auto sync на сцене с сотнями движущихся коллайдеров хорошо виден в профайлере как <code>Physics.SyncColliders</code> перед каждым запросом.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Физика видит transform только на шаге или после <code>SyncTransforms</code>; auto sync выключен с 2017.2, потому что он делает сброс перед каждым запросом. Двигаю тела через Rigidbody в FixedUpdate, для телепортов — явный SyncTransforms один раз перед запросами. <code>simulationMode</code> и <code>Physics.Simulate</code> — когда нужно управлять шагом».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Physics-autoSyncTransforms.html" target="_blank">Physics.autoSyncTransforms</a> <span>— поведение и стоимость</span></li>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Physics.SyncTransforms.html" target="_blank">Physics.SyncTransforms</a> <span>— явная синхронизация</span></li>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Physics-simulationMode.html" target="_blank">Physics.simulationMode</a> <span>— когда выполняется шаг</span></li>
+</ul></div>`},
+
+{n:357,c:"Physics",p:"core",
+q:`Moving a body: transform.position vs Rigidbody.MovePosition vs velocity vs AddForce — what does each do to interpolation, collisions and triggers?`,
+qru:`Перемещение тела: transform.position, Rigidbody.MovePosition, velocity или AddForce — что каждый делает с интерполяцией, коллизиями и триггерами?`,
+a:`Four ways, four different contracts. <code>transform.position</code> is a teleport: the physics scene sees the jump at the next sync, no path is swept, interpolation is reset (the visual pops), a dynamic body's velocity is left untouched so it keeps its momentum in a new place, and triggers along the path never fire — you can pass through walls. <code>Rigidbody.MovePosition/MoveRotation</code> on a <em>kinematic</em> body is the sanctioned way to drive platforms, doors and animated colliders: the move is applied during the next physics step, interpolation smooths it, and dynamic bodies standing on or hit by it receive proper contacts and get pushed; on a non-kinematic body it degenerates into a teleport. <code>linearVelocity</code> (formerly <code>velocity</code>) sets the integration input directly — the body still collides, slides and is stopped by walls — good for responsive character control, but overriding it every frame erases external forces (explosions, pushes) unless you add to it. <code>AddForce</code> feeds the solver: <code>Force</code>/<code>Acceleration</code> are continuous per-step inputs (mass-dependent / mass-independent), <code>Impulse</code>/<code>VelocityChange</code> are instantaneous; these compose with everything else and are the physically honest option. Rules: kinematic + MovePosition in <code>FixedUpdate</code>; dynamic + velocity or forces in <code>FixedUpdate</code>; transform writes only for real teleports, followed by zeroing velocity and <code>Physics.SyncTransforms</code> if you query afterwards; and never move an interpolated body through its transform.`,
+aru:`Четыре способа — четыре разных контракта. <code>transform.position</code> — телепорт: физическая сцена видит прыжок при следующей синхронизации, путь не просчитывается, интерполяция сбрасывается (картинка дёргается), скорость динамического тела не трогается — оно сохраняет импульс уже в новом месте, — а триггеры по пути не срабатывают: можно пройти сквозь стены. <code>Rigidbody.MovePosition/MoveRotation</code> на <em>кинематическом</em> теле — санкционированный способ двигать платформы, двери и анимированные коллайдеры: перемещение применяется на следующем шаге физики, интерполяция его сглаживает, а динамические тела, стоящие на нём или задетые им, получают правильные контакты и толкаются; на некинематическом теле это вырождается в телепорт. <code>linearVelocity</code> (бывший <code>velocity</code>) задаёт вход интегрирования напрямую — тело всё ещё сталкивается, скользит и останавливается стенами — хорошо для отзывчивого управления персонажем, но перезапись каждый кадр стирает внешние силы (взрывы, толчки), если не прибавлять к ней. <code>AddForce</code> кормит солвер: <code>Force</code>/<code>Acceleration</code> — непрерывные входы на шаг (зависят / не зависят от массы), <code>Impulse</code>/<code>VelocityChange</code> — мгновенные; они складываются со всем остальным и физически честны. Правила: кинематика + MovePosition в <code>FixedUpdate</code>; динамика + скорость или силы в <code>FixedUpdate</code>; запись в transform — только для настоящих телепортов, с обнулением скорости и <code>Physics.SyncTransforms</code>, если дальше есть запросы; и никогда не двигать интерполируемое тело через transform.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Transform — «поставить фигурку рукой»: физика узнает потом и ничего по дороге не заметит. MovePosition — «попросить физику довезти»: она сама сдвинет, толкнёт, кого встретит, и сгладит. Скорость и силы — «нажать на газ»: дальше едет физика по своим законам.</p>
+<h3>Шпаргалка</h3>
+<pre><span class="cm">// Платформа / дверь / лифт — kinematic + MovePosition в FixedUpdate</span>
+void FixedUpdate()
+{
+    var next = Vector3.Lerp(a, b, Mathf.PingPong(Time.time / period, 1f));
+    body.MovePosition(next);                       <span class="cm">// стоящий на платформе игрок поедет с ней</span>
+}
+
+<span class="cm">// Персонаж на динамическом теле — скорость, но не стирать внешние силы</span>
+void FixedUpdate()
+{
+    var v = body.linearVelocity;
+    v.x = input.x * speed; v.z = input.z * speed;   <span class="cm">// y оставляем гравитации и прыжку</span>
+    body.linearVelocity = v;
+}
+
+<span class="cm">// Взрыв — импульс, складывается со всем остальным</span>
+body.AddExplosionForce(power, center, radius, upModifier, ForceMode.Impulse);
+
+<span class="cm">// Телепорт — единственный законный transform-путь, и с ритуалом</span>
+body.position = spawn; body.rotation = Quaternion.identity;
+body.linearVelocity = Vector3.zero; body.angularVelocity = Vector3.zero;
+Physics.SyncTransforms();</pre>
+<div class="warn"><code>MovePosition</code> на теле с <code>isKinematic = false</code> — телепорт с побочными эффектами. Частая ошибка: «двигаю персонажа через MovePosition, а он проваливается сквозь пол» — тело динамическое.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Transform — телепорт без свипа и триггеров; MovePosition — для кинематики, со сглаживанием и контактами; скорость — прямой вход, стирает внешние силы, если перезаписывать; силы — честная физика. Всё физическое — в FixedUpdate, телепорт — с обнулением скорости и SyncTransforms».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Rigidbody.MovePosition.html" target="_blank">Rigidbody.MovePosition</a> <span>— поведение для kinematic и non-kinematic прямо в описании</span></li>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/ForceMode.html" target="_blank">ForceMode</a> <span>— четыре режима и зависимость от массы</span></li>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/Manual/class-Rigidbody.html" target="_blank">Rigidbody (Manual)</a> <span>— интерполяция, детекция столкновений, ограничения</span></li>
+</ul></div>`},
+
+{n:358,c:"Core",p:"mid",
+q:`MonoBehaviour constructors and field initializers: when do they run, why can't you use the Unity API there, and where does initialization belong?`,
+qru:`Конструкторы и инициализаторы полей MonoBehaviour: когда они выполняются, почему в них нельзя использовать Unity API и где должна жить инициализация?`,
+a:`You never call <code>new</code> on a MonoBehaviour; Unity constructs the managed wrapper itself whenever it needs one — on <code>AddComponent</code>, when a scene or prefab is deserialized, and in the Editor repeatedly: for serialization reads, prefab imports, inspector previews, and after every domain reload. The constructor and field initializers run at those moments, sometimes on a <em>loading thread</em>, and always before the native object is bound and before serialized fields are populated — so calling almost any Unity API there logs "must be called from the main thread" or "not allowed to be called from a MonoBehaviour constructor", <code>gameObject</code> is unusable, and a <code>[SerializeField]</code> value you assign in the initializer is overwritten by deserialization a moment later. Field initializers are fine for pure C# state (<code>new List&lt;T&gt;()</code>, a struct), with the caveat that they also run for the Editor's throwaway instances, so keep them cheap. Real initialization belongs in <code>Awake</code> (self-contained setup, caching own components) and <code>Start</code> (anything touching other objects, which are guaranteed to have had <code>Awake</code>), with <code>OnEnable</code>/<code>OnDisable</code> for subscription symmetry; ScriptableObjects follow the same rule with <code>OnEnable</code> and <code>CreateInstance</code>. Static fields initialized with Unity objects are the related trap: a static constructor runs at an unpredictable time and its state survives (or does not) domain reload depending on project settings.`,
+aru:`<code>new</code> для MonoBehaviour не вызывают никогда; Unity сам конструирует управляемую обёртку, когда она нужна — при <code>AddComponent</code>, при десериализации сцены или префаба, а в редакторе многократно: для чтения сериализации, импорта префабов, превью в инспекторе и после каждой перезагрузки домена. Конструктор и инициализаторы полей выполняются в эти моменты, иногда в <em>потоке загрузки</em>, и всегда до привязки нативного объекта и до заполнения сериализованных полей — поэтому почти любой вызов Unity API оттуда даёт «must be called from the main thread» или «not allowed to be called from a MonoBehaviour constructor», <code>gameObject</code> непригоден, а значение <code>[SerializeField]</code>, присвоенное в инициализаторе, через мгновение перезаписывается десериализацией. Инициализаторы полей годятся для чистого C#-состояния (<code>new List&lt;T&gt;()</code>, структура), с оговоркой, что они выполняются и для одноразовых экземпляров редактора, поэтому должны быть дешёвыми. Настоящая инициализация живёт в <code>Awake</code> (самодостаточная настройка, кэширование своих компонентов) и <code>Start</code> (всё, что трогает другие объекты — у них гарантированно прошёл <code>Awake</code>), с симметрией подписок в <code>OnEnable</code>/<code>OnDisable</code>; ScriptableObject живёт по тому же правилу с <code>OnEnable</code> и <code>CreateInstance</code>. Смежная ловушка — статические поля, инициализированные Unity-объектами: статический конструктор выполняется в непредсказуемый момент, а его состояние переживает (или нет) перезагрузку домена в зависимости от настроек проекта.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Конструктор MonoBehaviour — это «сборка корпуса на конвейере»: движок штампует обёртки, когда ему удобно, порой в другом цехе и по несколько штук на один реальный объект. Всё, что относится к живому объекту в сцене, делается позже, когда объект «включили» — в Awake и Start.</p>
+<h3>Что ломается и как правильно</h3>
+<pre>public class Enemy : MonoBehaviour
+{
+    [SerializeField] int hp = 100;                        <span class="cm">// OK: дефолт, перезапишется данными сцены</span>
+    readonly List&lt;Buff&gt; buffs = new();                    <span class="cm">// OK: чистый C#, дёшево</span>
+    Camera cam = Camera.main;                             <span class="cm">// ✘ Unity API в инициализаторе: поток загрузки, до привязки объекта</span>
+    GameObject marker = new GameObject("Marker");         <span class="cm">// ✘ создаёт объект при каждой десериализации — в редакторе десятки раз</span>
+    Rigidbody body;
+    static readonly Material shared = new Material(...);  <span class="cm">// ✘ статический конструктор + Unity-объект: время неизвестно, утечка при domain reload</span>
+
+    public Enemy() { Debug.Log(name); }                   <span class="cm">// ✘ имя ещё не привязано; в редакторе выполнится десятки раз</span>
+
+    void Awake()  { body = GetComponent&lt;Rigidbody&gt;(); }    <span class="cm">// ✔ своё</span>
+    void Start()  { target = Player.Instance; }           <span class="cm">// ✔ чужое — у него Awake уже прошёл</span>
+    void OnEnable()  { Events.OnPause += Pause; }
+    void OnDisable() { Events.OnPause -= Pause; }
+}</pre>
+<div class="tip">Проверка на код-ревью: любой инициализатор поля, справа от которого что-то из <code>UnityEngine</code> (кроме структур вроде <code>Vector3</code>, <code>Color</code>), — переносится в <code>Awake</code>.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Обёртки создаёт движок — при десериализации, в редакторе многократно, иногда в потоке загрузки, до привязки нативного объекта и до заполнения полей. Поэтому в конструкторе и инициализаторах — только чистый C#. Своё — в Awake, чужое — в Start, подписки — симметрично в OnEnable/OnDisable».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/Manual/execution-order.html" target="_blank">Order of execution for event functions</a> <span>— где место Awake, OnEnable, Start</span></li>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/Manual/script-serialization.html" target="_blank">Script serialization</a> <span>— почему конструктор выполняется при десериализации и в потоке загрузки</span></li>
+</ul></div>`},
+{n:359,c:"Math",p:"core",
+q:`Dot product: the five things a gameplay programmer uses it for, and the two mistakes that come with it.`,
+qru:`Скалярное произведение: пять применений в геймплейном коде и две ошибки, которые идут с ним в комплекте.`,
+a:`<code>Dot(a, b) = |a|·|b|·cos θ</code>; for unit vectors it is simply the cosine of the angle between them: 1 = same direction, 0 = perpendicular, -1 = opposite. That one number answers most spatial questions without a single trig call. (1) Facing: <code>Dot(forward, toTarget) &gt; 0</code> — the target is in front. (2) Field of view: <code>Dot(forward, toTarget.normalized) &gt; Mathf.Cos(halfFov * Deg2Rad)</code> — compare against a precomputed cosine, never call <code>Acos</code> per enemy. (3) Projection: <code>Dot(v, axis)</code> with a unit axis is the signed length of v along it — speed along the slope, how much of the velocity goes into the wall, <code>Vector3.Project</code>. (4) Decomposition: <code>v - n * Dot(v, n)</code> removes the component along a normal, which is how sliding along walls and ground works. (5) Lighting and alignment: <code>N·L</code> is Lambert; <code>Dot(up, groundNormal)</code> tells you how steep a slope is. Mistakes: interpreting the dot of un-normalized vectors as a cosine (it scales with both lengths); and feeding <code>Mathf.Acos</code> a value like 1.0000001 produced by float error — it returns NaN, so clamp to [-1, 1] first, or avoid acos entirely by comparing cosines.`,
+aru:`<code>Dot(a, b) = |a|·|b|·cos θ</code>; для единичных векторов это просто косинус угла между ними: 1 — одно направление, 0 — перпендикуляр, -1 — противоположные. Одно число отвечает на большинство пространственных вопросов без единого вызова тригонометрии. (1) Направленность: <code>Dot(forward, toTarget) &gt; 0</code> — цель впереди. (2) Поле зрения: <code>Dot(forward, toTarget.normalized) &gt; Mathf.Cos(halfFov * Deg2Rad)</code> — сравниваем с заранее посчитанным косинусом, никаких <code>Acos</code> на каждого врага. (3) Проекция: <code>Dot(v, axis)</code> с единичной осью — знаковая длина v вдоль неё: скорость вдоль склона, сколько скорости уходит в стену, <code>Vector3.Project</code>. (4) Разложение: <code>v - n * Dot(v, n)</code> убирает составляющую вдоль нормали — так работает скольжение вдоль стен и по земле. (5) Освещение и выравнивание: <code>N·L</code> — Ламберт; <code>Dot(up, groundNormal)</code> говорит, насколько крут склон. Ошибки: трактовать dot ненормализованных векторов как косинус (он масштабируется обеими длинами); и подать в <code>Mathf.Acos</code> значение вроде 1.0000001 из-за погрешности float — вернётся NaN, поэтому сначала clamp в [-1, 1], а лучше вовсе обойтись без acos, сравнивая косинусы.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Dot — «насколько два направления согласны». Согласны полностью — 1, безразличны друг другу — 0, спорят — минус 1. Умножьте на длину — получите «сколько одного вектора лежит вдоль другого».</p>
+<h3>Пять применений в коде</h3>
+<pre>Vector3 to = (target.position - transform.position);
+Vector3 dir = to.normalized;
+
+<span class="cm">// 1. Впереди или сзади</span>
+bool inFront = Vector3.Dot(transform.forward, dir) &gt; 0f;
+
+<span class="cm">// 2. Конус зрения: косинус посчитан один раз, acos не нужен</span>
+float cosHalfFov = Mathf.Cos(halfFovDegrees * Mathf.Deg2Rad);   <span class="cm">// в Awake</span>
+bool inFov = Vector3.Dot(transform.forward, dir) &gt; cosHalfFov;
+
+<span class="cm">// 3. Скорость вдоль направления движения (знаковая)</span>
+float forwardSpeed = Vector3.Dot(body.linearVelocity, transform.forward);
+
+<span class="cm">// 4. Скольжение: убрать составляющую «в стену»</span>
+Vector3 slide = velocity - wallNormal * Vector3.Dot(velocity, wallNormal);   <span class="cm">// == ProjectOnPlane</span>
+
+<span class="cm">// 5. Крутизна склона</span>
+float slopeCos = Vector3.Dot(Vector3.up, hit.normal);     <span class="cm">// 1 — ровно, cos(45°) ≈ 0.707 — 45°</span>
+bool walkable = slopeCos &gt; Mathf.Cos(maxSlope * Mathf.Deg2Rad);
+
+<span class="cm">// Если угол всё же нужен — clamp обязателен</span>
+float angle = Mathf.Acos(Mathf.Clamp(Vector3.Dot(a, b), -1f, 1f)) * Mathf.Rad2Deg;</pre>
+<div class="tip">Dot стоит три умножения и два сложения. <code>Vector3.Angle</code> внутри делает нормализацию, dot, clamp и acos — в десятки раз дороже. В цикле по сотням врагов это разница между «бесплатно» и «видно в профайлере».</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Dot единичных векторов — косинус угла. Сравниваю с косинусом порога вместо acos, проецирую скорость на оси, убираю составляющую вдоль нормали для скольжения, оцениваю крутизну по dot с up. Нормализую перед трактовкой как косинус и клампую перед acos».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://www.youtube.com/playlist?list=PLImQaTpSAdsD88wprTConznD1OY1EfK_V" target="_blank">Freya Holmér — Math for Game Devs</a> <span>— лучший визуальный курс по векторам для геймплея; лекция про dot и cross</span></li>
+<li><a href="https://gamemath.com/book/vectors.html" target="_blank">3D Math Primer for Graphics and Game Development — Vectors</a> <span>— бесплатная онлайн-версия учебника</span></li>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/Manual/UnderstandingVectorArithmetic.html" target="_blank">Unity — Understanding vector arithmetic</a> <span>— краткая официальная памятка</span></li>
+</ul></div>`},
+
+{n:360,c:"Math",p:"core",
+q:`Cross product: what it gives you, how handedness works in Unity, and where the sign trick is used in gameplay.`,
+qru:`Векторное произведение: что оно даёт, как работает «рукость» в Unity и где в геймплее используется трюк со знаком.`,
+a:`<code>Cross(a, b)</code> is a vector perpendicular to both, with length <code>|a|·|b|·sin θ</code> — the area of the parallelogram they span, zero when they are parallel. Direction follows the cyclic rule of the basis: in Unity <code>Cross(right, up) = forward</code>, <code>Cross(up, forward) = right</code>, <code>Cross(forward, right) = up</code>; swap the operands and the result flips sign. Unity's coordinate system is left-handed, which changes how you visualise it (left-hand rule) but not the formula. Uses: (1) surface normals from two triangle edges — and the winding order decides which way the normal points, which is why flipped triangles render black or cull; (2) turn direction: <code>Cross(forward, toTarget).y &gt; 0</code> means the target is to the right, so an AI knows which way to steer without computing an angle — this is exactly what <code>Vector3.SignedAngle</code> does internally; (3) building an orthonormal frame: given a forward and an approximate up, <code>right = Cross(up, forward)</code>, then <code>trueUp = Cross(forward, right)</code> — how <code>LookRotation</code> and tangent frames for normal mapping are constructed; (4) torque and angular velocity from a lever arm. Traps: <code>Cross</code> of parallel vectors is zero and normalising it gives NaN (guard <code>sqrMagnitude</code>); its magnitude scales with the inputs, so normalise if you need a unit normal; and a "which side of the line" test in 2D is just the z of the 3D cross — the 2D "perp dot".`,
+aru:`<code>Cross(a, b)</code> — вектор, перпендикулярный обоим, длиной <code>|a|·|b|·sin θ</code> — площадь натянутого на них параллелограмма, ноль при параллельности. Направление подчиняется циклическому правилу базиса: в Unity <code>Cross(right, up) = forward</code>, <code>Cross(up, forward) = right</code>, <code>Cross(forward, right) = up</code>; поменяйте операнды — знак сменится. Система координат Unity левосторонняя, что меняет визуализацию (правило левой руки), но не формулу. Применения: (1) нормали поверхности из двух рёбер треугольника — порядок обхода решает, куда смотрит нормаль, поэтому перевёрнутые треугольники рендерятся чёрными или отсекаются; (2) направление поворота: <code>Cross(forward, toTarget).y &gt; 0</code> — цель справа, и ИИ знает, куда рулить, не вычисляя угол — ровно это делает внутри <code>Vector3.SignedAngle</code>; (3) построение ортонормированного базиса: по forward и приблизительному up: <code>right = Cross(up, forward)</code>, затем <code>trueUp = Cross(forward, right)</code> — так строятся <code>LookRotation</code> и касательные базисы для normal mapping; (4) момент силы и угловая скорость из плеча. Ловушки: <code>Cross</code> параллельных векторов — ноль, а его нормализация — NaN (проверяйте <code>sqrMagnitude</code>); длина масштабируется входами, поэтому для единичной нормали нормализуйте; а тест «с какой стороны от линии» в 2D — это просто z трёхмерного cross, «perp dot».`,
+d:`
+<h3>Простыми словами</h3>
+<p>Cross отвечает на вопрос «куда торчит перпендикуляр» и «насколько два вектора не параллельны». Знак ответа зависит от порядка — и именно этот знак используют, чтобы понять «слева или справа».</p>
+<h3>Код</h3>
+<pre><span class="cm">// Нормаль треугольника — порядок вершин определяет сторону</span>
+Vector3 n = Vector3.Cross(b - a, c - a).normalized;     <span class="cm">// поменять b и c — нормаль перевернётся</span>
+
+<span class="cm">// Слева или справа — без углов</span>
+Vector3 toTarget = target.position - transform.position;
+float side = Vector3.Cross(transform.forward, toTarget).y;   <span class="cm">// &gt; 0: справа, &lt; 0: слева (в Unity)</span>
+steer = Mathf.Sign(side);
+
+<span class="cm">// Ортонормированный базис из forward и «примерно up»</span>
+Vector3 right  = Vector3.Cross(approxUp, forward).normalized;
+Vector3 trueUp = Vector3.Cross(forward, right);              <span class="cm">// уже единичный: forward ⟂ right, оба единичные</span>
+
+<span class="cm">// Защита от параллельности</span>
+Vector3 c = Vector3.Cross(a, b);
+if (c.sqrMagnitude &lt; 1e-8f) c = FallbackAxis(a);            <span class="cm">// иначе normalized даст NaN</span>
+
+<span class="cm">// 2D: «perp dot» — тот же z</span>
+float PerpDot(Vector2 a, Vector2 b) =&gt; a.x * b.y - a.y * b.x;</pre>
+<div class="tip">Запомнить циклический порядок в Unity: x → y → z → x. <code>Cross(x, y) = z</code>, <code>Cross(y, z) = x</code>, <code>Cross(z, x) = y</code>. Обратный порядок — минус.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Cross — перпендикуляр с длиной |a||b|sinθ; порядок операндов задаёт знак, в Unity <code>Cross(forward, right) = up</code>. Использую для нормалей, для «слева/справа» по знаку y, для построения базиса. Проверяю параллельность через sqrMagnitude перед нормализацией».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Vector3.Cross.html" target="_blank">Vector3.Cross</a> <span>— с иллюстрацией правила левой руки</span></li>
+<li><a href="https://gamemath.com/book/vectors.html#cross_product" target="_blank">3D Math Primer — Cross product</a> <span>— геометрический смысл и применения</span></li>
+</ul></div>`},
+
+{n:361,c:"Math",p:"core",
+q:`Quaternions: why not Euler angles, what a quaternion actually stores, why q * v rotates a vector, and what order a * b means.`,
+qru:`Кватернионы: почему не углы Эйлера, что реально хранит кватернион, почему q * v поворачивает вектор и что означает порядок a * b.`,
+a:`Euler angles are three sequential rotations about axes (Unity applies Z, then X, then Y); when the middle one hits ±90° two axes line up and a degree of freedom disappears — gimbal lock — and interpolating three angles independently produces curved, wobbling paths. A quaternion stores a rotation as an axis and a half-angle: <code>(x, y, z) = axis · sin(θ/2)</code>, <code>w = cos(θ/2)</code>, always unit length. That representation composes and interpolates cleanly, has no singularities, and costs 4 floats. <code>q * v</code> is shorthand for <code>q · v · q⁻¹</code>, which rotates the vector; the half-angle is why the sandwich yields a full θ. <code>a * b</code> means "apply b first, then a" — so <code>transform.rotation * localOffset</code> takes a local-space offset into world space, and <code>Quaternion.Inverse(rotation) * worldDir</code> brings a world direction into local space; <code>Quaternion.AngleAxis</code>, <code>LookRotation(forward, up)</code> and <code>FromToRotation</code> are the constructors you actually use. Practical rules: never accumulate through <code>eulerAngles</code> (reading them back gives one of many equivalent triples and re-introduces gimbal issues); renormalise after long chains of multiplications; remember <code>q</code> and <code>-q</code> are the same rotation (relevant when comparing or interpolating); and <code>LookRotation</code> with parallel forward/up is undefined — guard it.`,
+aru:`Углы Эйлера — три последовательных поворота вокруг осей (Unity применяет Z, потом X, потом Y); когда средний достигает ±90°, две оси совпадают и степень свободы исчезает — gimbal lock, — а независимая интерполяция трёх углов даёт кривые, качающиеся траектории. Кватернион хранит поворот как ось и половину угла: <code>(x, y, z) = axis · sin(θ/2)</code>, <code>w = cos(θ/2)</code>, всегда единичной длины. Такое представление чисто композируется и интерполируется, не имеет сингулярностей и стоит 4 float. <code>q * v</code> — сокращение для <code>q · v · q⁻¹</code>, которое поворачивает вектор; половинный угол и есть причина, по которой «сэндвич» даёт полный θ. <code>a * b</code> означает «сначала b, потом a» — поэтому <code>transform.rotation * localOffset</code> переводит локальное смещение в мировое, а <code>Quaternion.Inverse(rotation) * worldDir</code> — мировое направление в локальное; <code>Quaternion.AngleAxis</code>, <code>LookRotation(forward, up)</code> и <code>FromToRotation</code> — конструкторы, которыми реально пользуются. Практические правила: никогда не накапливать через <code>eulerAngles</code> (чтение возвращает одну из многих эквивалентных троек и возвращает проблемы gimbal); ренормализовать после длинных цепочек умножений; помнить, что <code>q</code> и <code>-q</code> — один поворот (важно при сравнении и интерполяции); а <code>LookRotation</code> с параллельными forward/up не определён — защищайте.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Эйлер — «поверни на столько по X, потом по Y, потом по Z»: понятно человеку, но порядок важен, а в одной позе два регулятора начинают крутить одно и то же. Кватернион — «поверни на угол θ вокруг вот этой оси», записанное так, чтобы повороты можно было перемножать и плавно смешивать. Углы Эйлера — для инспектора, кватернионы — для кода.</p>
+<h3>Формулы и порядок</h3>
+<pre><span class="cm">// Что внутри</span>
+Quaternion q = Quaternion.AngleAxis(90f, Vector3.up);
+<span class="cm">// q = (0, sin(45°), 0, cos(45°)) = (0, 0.707, 0, 0.707)</span>
+
+<span class="cm">// Порядок: a * b — сначала b, потом a</span>
+Quaternion world = parent.rotation * localRotation;          <span class="cm">// локальный поворот, потом родительский</span>
+Vector3 worldOffset = transform.rotation * new Vector3(0, 0, 2);   <span class="cm">// 2 м «вперёд» в мировых координатах</span>
+Vector3 localDir = Quaternion.Inverse(transform.rotation) * worldDir;
+
+<span class="cm">// Поворот «докрутить»: слева — в мировых осях, справа — в локальных</span>
+transform.rotation = Quaternion.AngleAxis(10f, Vector3.up) * transform.rotation;   <span class="cm">// вокруг мирового up</span>
+transform.rotation = transform.rotation * Quaternion.AngleAxis(10f, Vector3.up);   <span class="cm">// вокруг своего up</span>
+
+<span class="cm">// Антипаттерн: накопление через Эйлера</span>
+var e = transform.eulerAngles; e.x += 10f; transform.eulerAngles = e;   <span class="cm">// у ±90° по X начнёт «прыгать»</span>
+
+<span class="cm">// Защита LookRotation</span>
+if (Vector3.Cross(forward, up).sqrMagnitude &gt; 1e-6f) rot = Quaternion.LookRotation(forward, up);</pre>
+<div class="tip"><code>Quaternion.Angle(a, b)</code> — кратчайший угол между поворотами; <code>Quaternion.Dot(a, b) &lt; 0</code> — значит, a и b лежат «по разные стороны» двойного покрытия, и перед интерполяцией один из них надо отрицать (встроенные Lerp/Slerp делают это сами).</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Эйлер: три последовательных поворота, gimbal lock при ±90° в середине, плохая интерполяция. Кватернион: ось и половина угла, единичный, без сингулярностей. <code>a * b</code> — сначала b. Поворот вектора — <code>q v q⁻¹</code>. Не накапливаю через eulerAngles, помню про q и -q, защищаю LookRotation».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://eater.net/quaternions" target="_blank">Visualizing quaternions (Ben Eater + 3Blue1Brown)</a> <span>— интерактивная визуализация, после которой формулы становятся очевидными</span></li>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/Manual/QuaternionAndEulerRotationsInUnity.html" target="_blank">Unity — Rotation and orientation</a> <span>— порядок Эйлера в Unity и правила использования</span></li>
+<li><a href="https://gamemath.com/book/orient.html" target="_blank">3D Math Primer — Rotation in three dimensions</a> <span>— матрицы, Эйлер, кватернионы: сравнение представлений</span></li>
+</ul></div>`},
+
+{n:362,c:"Math",p:"mid",
+q:`Quaternion.Lerp vs Slerp vs RotateTowards: what each computes, when the cheap one is good enough, and what the double cover does to interpolation.`,
+qru:`Quaternion.Lerp, Slerp и RotateTowards: что вычисляет каждый, когда дешёвого достаточно и что двойное покрытие делает с интерполяцией.`,
+a:`<code>Slerp</code> moves along the great arc between two rotations at constant angular speed: the geometrically correct interpolation, costing an <code>acos</code>, a <code>sin</code> and a division. <code>Lerp</code> (really nlerp) interpolates the four components linearly and renormalises: the same path, but the angular speed is not constant — faster in the middle — and it is a few multiplies. Below roughly 30–40° the two are visually indistinguishable, so nlerp is the default for per-frame smoothing, bone blending and anything with many rotations; reserve slerp for large angles where uniform speed is visible (a cinematic camera swing, a 180° turn animation). Both must handle the double cover: <code>q</code> and <code>-q</code> are the same rotation, and if <code>Dot(a, b) &lt; 0</code> a naive interpolation takes the long way round (the 300° route instead of 60°); Unity's <code>Lerp</code>/<code>Slerp</code> negate one operand internally, but if you write your own or blend more than two rotations (weighted averages of quaternions) you must do it yourself. <code>RotateTowards(from, to, maxDegreesDelta)</code> is not an interpolation at all: it is a rate limiter — turn towards the target by at most this many degrees this frame — which is what turrets, steering and "face the movement direction" need, because it gives a constant turn speed independent of how far away the target is. Frame-rate independence for the first two is a separate concern: <code>Slerp(a, b, k * dt)</code> is the smoothing anti-pattern covered under exponential decay.`,
+aru:`<code>Slerp</code> движется по большой дуге между двумя поворотами с постоянной угловой скоростью: геометрически корректная интерполяция ценой <code>acos</code>, <code>sin</code> и деления. <code>Lerp</code> (на деле nlerp) линейно интерполирует четыре компоненты и ренормализует: тот же путь, но угловая скорость не постоянна — быстрее в середине, — и это несколько умножений. Примерно до 30–40° они визуально неразличимы, поэтому nlerp — выбор по умолчанию для покадрового сглаживания, блендинга костей и всего, где поворотов много; slerp — для больших углов, где равномерность скорости заметна (кинематографический разворот камеры, анимация поворота на 180°). Оба обязаны учитывать двойное покрытие: <code>q</code> и <code>-q</code> — один поворот, и при <code>Dot(a, b) &lt; 0</code> наивная интерполяция идёт длинным путём (300° вместо 60°); <code>Lerp</code>/<code>Slerp</code> Unity отрицают один операнд внутри, но если пишете свою или смешиваете больше двух поворотов (взвешенные средние кватернионов), делать это придётся самим. <code>RotateTowards(from, to, maxDegreesDelta)</code> — вообще не интерполяция, а ограничитель скорости: повернуться к цели не более чем на столько градусов за кадр — то, что нужно турелям, рулению и «смотреть по направлению движения», потому что даёт постоянную скорость поворота независимо от расстояния до цели. Независимость от частоты кадров у первых двух — отдельная тема: <code>Slerp(a, b, k * dt)</code> — тот самый антипаттерн сглаживания, разобранный в вопросе про экспоненциальное затухание.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Slerp — ехать по дуге с круиз-контролем. Lerp — ехать по той же дуге, но с газом, который сам прибавляется в середине: дёшево и на коротких отрезках незаметно. RotateTowards — «поворачивай, но не быстрее N градусов в секунду»: это про скорость, а не про долю пути.</p>
+<h3>Код</h3>
+<pre><span class="cm">// Турель: постоянная скорость поворота, независимо от расстояния до цели</span>
+var want = Quaternion.LookRotation(target.position - turret.position);
+turret.rotation = Quaternion.RotateTowards(turret.rotation, want, turnSpeedDeg * Time.deltaTime);
+
+<span class="cm">// Сглаживание камеры: nlerp с независимой от fps долей (см. экспоненциальное затухание)</span>
+float t = 1f - Mathf.Exp(-sharpness * Time.deltaTime);
+cam.rotation = Quaternion.Lerp(cam.rotation, want, t);
+
+<span class="cm">// Своё смешивание N поворотов: приводим к одной «стороне» двойного покрытия</span>
+Vector4 acc = Vector4.zero;
+Quaternion reference = rotations[0];
+for (int i = 0; i &lt; rotations.Length; i++)
+{
+    var q = rotations[i];
+    if (Quaternion.Dot(reference, q) &lt; 0f) q = new Quaternion(-q.x, -q.y, -q.z, -q.w);   <span class="cm">// иначе «длинный путь»</span>
+    acc += weights[i] * new Vector4(q.x, q.y, q.z, q.w);
+}
+var result = new Quaternion(acc.x, acc.y, acc.z, acc.w).normalized;   <span class="cm">// взвешенный nlerp</span></pre>
+<div class="tip">Сравнивать повороты через <code>a == b</code> нельзя: оператор Unity сравнивает с допуском по dot, но <code>-q</code> для него тоже «равен» q — и это правильно. Для «насколько отличаются» используйте <code>Quaternion.Angle</code>.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Slerp — постоянная угловая скорость, дорого; Lerp — nlerp, дёшево, до ~30–40° неотличимо. Двойное покрытие: при отрицательном dot отрицаю один операнд, иначе длинный путь. RotateTowards — лимит скорости, для турелей и руления. Сглаживание — с долей через exp, не k·dt».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Quaternion.Slerp.html" target="_blank">Quaternion.Slerp</a> <span>— и соседние Lerp / RotateTowards / Angle в той же секции</span></li>
+<li><a href="https://gamemath.com/book/orient.html#quaternion_slerp" target="_blank">3D Math Primer — Quaternion interpolation</a> <span>— вывод slerp и nlerp, обсуждение двойного покрытия</span></li>
+</ul></div>`},
+
+{n:363,c:"Math",p:"core",
+q:`Frame-rate-independent smoothing: why Lerp(a, b, k * deltaTime) is wrong, what exponential decay and SmoothDamp do instead, and how you explain the parameter to a designer.`,
+qru:`Сглаживание, независимое от частоты кадров: почему Lerp(a, b, k * deltaTime) неверен, что вместо него делают экспоненциальное затухание и SmoothDamp и как объяснить параметр дизайнеру.`,
+a:`<code>x = Lerp(x, target, k * dt)</code> closes a <em>fraction</em> of the remaining gap each frame. Two frames of 8 ms do not equal one of 16 ms: after two steps you have covered <code>1 - (1 - 8k)²</code>, after one big step <code>1 - 16k</code>, and those differ — so the same camera feels tighter at 144 fps than at 30, and at large <code>dt</code> the factor clamps at 1 and snaps. The exact form of "close a fixed fraction per second" is exponential decay: <code>x = Lerp(x, target, 1 - Mathf.Exp(-k * dt))</code>, which composes correctly for any frame length, never overshoots, and is stable at any <code>dt</code>. The designer-friendly parameterisation is a half-life: <code>t = 1 - Mathf.Pow(0.5f, dt / halfLife)</code> — "the gap halves every 0.1 s" is something anyone can tune, whereas <code>k = 12</code> is not. <code>Mathf.SmoothDamp</code> is a different tool: a critically damped spring with a target time and optional max speed, carrying a velocity state, which gives ease-in as well as ease-out and is right for cameras and UI that should not react instantly to a target jump; its cost is that extra state per value. <code>MoveTowards</code> is the third family — constant speed, linear, arrives exactly. Same rules apply to <code>Quaternion.Slerp</code> smoothing and to colours. Use <code>unscaledDeltaTime</code> for UI that must keep moving while the game is paused.`,
+aru:`<code>x = Lerp(x, target, k * dt)</code> закрывает <em>долю</em> оставшегося расстояния каждый кадр. Два кадра по 8 мс не равны одному в 16 мс: за два шага пройдено <code>1 - (1 - 8k)²</code>, за один большой — <code>1 - 16k</code>, и это разные числа — поэтому та же камера ощущается «жёстче» на 144 fps, чем на 30, а при большом <code>dt</code> множитель упирается в 1 и прыгает. Точная форма «закрывать фиксированную долю в секунду» — экспоненциальное затухание: <code>x = Lerp(x, target, 1 - Mathf.Exp(-k * dt))</code>, оно корректно складывается для любой длины кадра, никогда не перелетает и стабильно при любом <code>dt</code>. Параметризация для дизайнера — период полураспада: <code>t = 1 - Mathf.Pow(0.5f, dt / halfLife)</code> — «расстояние сокращается вдвое каждые 0,1 с» настроит кто угодно, а <code>k = 12</code> — нет. <code>Mathf.SmoothDamp</code> — другой инструмент: критически демпфированная пружина с целевым временем и опциональной максимальной скоростью, хранящая скорость как состояние; она даёт и плавный разгон, и плавное торможение и подходит камерам и UI, которые не должны мгновенно реагировать на прыжок цели; цена — лишнее состояние на каждое значение. <code>MoveTowards</code> — третье семейство: постоянная скорость, линейно, приходит точно. Те же правила для сглаживания через <code>Quaternion.Slerp</code> и для цветов. Для UI, который должен двигаться на паузе, — <code>unscaledDeltaTime</code>.`,
+d:`
+<h3>Простыми словами</h3>
+<p>«Каждый кадр проходи 10% оставшегося пути» — правило, которое зависит от того, сколько кадров в секунде. «Каждую секунду сокращай остаток в e раз» — не зависит. Первое пишут все, второе — правильное, и разница — одна строка.</p>
+<h3>Три инструмента</h3>
+<pre><span class="cm">// ✘ Зависит от fps: на 144 fps «жёстче», чем на 30; при лаге прыгает</span>
+pos = Vector3.Lerp(pos, target, 10f * Time.deltaTime);
+
+<span class="cm">// ✔ Экспоненциальное затухание: одинаково при любом dt</span>
+pos = Vector3.Lerp(pos, target, 1f - Mathf.Exp(-10f * Time.deltaTime));
+
+<span class="cm">// ✔ То же, но параметр понятен дизайнеру: «остаток сокращается вдвое за halfLife секунд»</span>
+static float Damp(float halfLife, float dt) =&gt; 1f - Mathf.Pow(0.5f, dt / halfLife);
+pos = Vector3.Lerp(pos, target, Damp(0.15f, Time.deltaTime));
+
+<span class="cm">// ✔ SmoothDamp: пружина с разгоном; velocity — состояние, хранится между кадрами</span>
+pos = Vector3.SmoothDamp(pos, target, ref velocity, smoothTime: 0.3f, maxSpeed: 20f);
+
+<span class="cm">// ✔ MoveTowards: постоянная скорость, приходит точно</span>
+pos = Vector3.MoveTowards(pos, target, speed * Time.deltaTime);</pre>
+<div class="tip">Проверка любой формулы сглаживания: вызовите её два раза с dt/2 и один раз с dt — результат должен совпасть. Для <code>k·dt</code> он не совпадает, для <code>1 - exp(-k·dt)</code> — совпадает точно.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Lerp с k·dt — доля за кадр, а не за секунду, поэтому зависит от fps и прыгает при лагах. Правильно — <code>1 - exp(-k·dt)</code>, дизайнеру отдаю в виде half-life. SmoothDamp — пружина с разгоном и состоянием скорости, для камер. MoveTowards — постоянная скорость».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://www.rorydriscoll.com/2016/03/07/frame-rate-independent-damping-using-lerp/" target="_blank">Rory Driscoll — Frame rate independent damping using lerp</a> <span>— короткий вывод формулы</span></li>
+<li><a href="https://gafferongames.com/post/fix_your_timestep/" target="_blank">Glenn Fiedler — Fix Your Timestep!</a> <span>— почему шаг симуляции и кадр рендера должны быть разделены</span></li>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Mathf.SmoothDamp.html" target="_blank">Mathf.SmoothDamp</a> <span>— параметры и семантика smoothTime</span></li>
+</ul></div>`},
+
+{n:364,c:"Math",p:"core",
+q:`Coordinate spaces: TransformPoint vs TransformDirection vs TransformVector, and why normals need the inverse-transpose under non-uniform scale.`,
+qru:`Пространства координат: TransformPoint, TransformDirection и TransformVector, и почему нормалям под неравномерным масштабом нужна обратная транспонированная матрица.`,
+a:`A transform is scale, then rotation, then translation. Which of the three apply depends on what the vector <em>means</em>, and Unity gives you three methods so you do not have to think in matrices: <code>TransformPoint</code> applies all three — for positions (a socket on a weapon, a spawn offset); <code>TransformDirection</code> applies rotation only — for pure directions, which must keep their length and ignore scale (aim vectors, raycast directions); <code>TransformVector</code> applies scale and rotation but not translation — for displacements and velocities that live in local units (a knockback expressed in the object's own axes on a scaled object). The <code>InverseTransform*</code> trio goes the other way (world → local); <code>InverseTransformPoint</code> is how "is the target in front and to the left of me" becomes a sign check. Normals are the trap: a normal is not a direction of the surface but the direction perpendicular to it, and under non-uniform scale the two diverge — transforming a normal by the model matrix tilts it off the surface. The correct matrix is the inverse-transpose of the upper 3×3 (for rotation-only or uniform scale it collapses to the rotation itself, which is why nobody notices until an artist stretches a mesh). Shaders do this in <code>TransformObjectToWorldNormal</code>; in C#, <code>transform.TransformDirection</code> on a normal is only correct for uniform scale. Hierarchy corollary: a child under a non-uniformly scaled, rotated parent ends up sheared, which Transform cannot represent — <code>lossyScale</code> is an approximation and the reason artists are told to keep scale (1,1,1) on anything with children.`,
+aru:`Трансформ — это масштаб, затем поворот, затем перенос. Какие из трёх применять, зависит от того, что вектор <em>означает</em>, и Unity даёт три метода, чтобы не думать матрицами: <code>TransformPoint</code> применяет все три — для позиций (сокет на оружии, смещение спавна); <code>TransformDirection</code> — только поворот — для чистых направлений, которые должны сохранять длину и игнорировать масштаб (векторы прицеливания, направления лучей); <code>TransformVector</code> — масштаб и поворот без переноса — для смещений и скоростей в локальных единицах (отбрасывание в собственных осях масштабированного объекта). Тройка <code>InverseTransform*</code> идёт обратно (мир → локаль); <code>InverseTransformPoint</code> превращает «цель впереди и слева от меня» в проверку знаков. Ловушка — нормали: нормаль не направление поверхности, а перпендикуляр к ней, и под неравномерным масштабом они расходятся — преобразование нормали матрицей модели наклоняет её от поверхности. Правильная матрица — обратная транспонированная верхняя 3×3 (для чистого поворота или равномерного масштаба она сводится к самому повороту, поэтому никто не замечает, пока художник не растянет меш). В шейдерах это делает <code>TransformObjectToWorldNormal</code>; в C# <code>transform.TransformDirection</code> для нормали корректен только при равномерном масштабе. Следствие для иерархии: ребёнок под неравномерно масштабированным и повёрнутым родителем получает сдвиг (shear), который Transform представить не может — <code>lossyScale</code> лишь приближение, и поэтому художникам говорят держать (1,1,1) на всём, у чего есть дети.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Три вопроса к любому вектору: «это место?» — тогда его двигают, вращают и масштабируют; «это направление?» — только вращают; «это сдвиг в местных единицах?» — вращают и масштабируют. Нормаль — четвёртый случай: она перпендикуляр, а перпендикуляр при растяжении наклоняется не туда, куда поверхность.</p>
+<h3>Код</h3>
+<pre><span class="cm">// Позиция: полный трансформ</span>
+Vector3 muzzleWorld = weapon.TransformPoint(muzzleLocalOffset);
+
+<span class="cm">// Направление: только поворот, длина сохраняется даже при scale = (2, 2, 2)</span>
+Vector3 aim = weapon.TransformDirection(Vector3.forward);
+
+<span class="cm">// Смещение в локальных единицах: масштаб + поворот, без переноса</span>
+Vector3 knockback = enemy.TransformVector(new Vector3(0, 0, -1.5f));
+
+<span class="cm">// Обратно: где цель относительно меня</span>
+Vector3 local = transform.InverseTransformPoint(target.position);
+bool inFrontLeft = local.z &gt; 0 &amp;&amp; local.x &lt; 0;
+
+<span class="cm">// Нормаль под неравномерным масштабом — через обратную транспонированную</span>
+Matrix4x4 normalMatrix = transform.localToWorldMatrix.inverse.transpose;
+Vector3 worldNormal = normalMatrix.MultiplyVector(localNormal).normalized;
+<span class="cm">// при scale (1,1,1) или (s,s,s) это совпадает с TransformDirection</span></pre>
+<div class="warn">Симптом на проекте: освещение «съезжает» на растянутых мешах, raycast-нормали не совпадают с картинкой, декали ложатся криво. Первое, что проверить, — неравномерный масштаб в иерархии.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Point — всё, Direction — только поворот, Vector — поворот и масштаб. Нормаль — перпендикуляр, под неравномерным масштабом её преобразуют inverse-transpose; при равномерном это просто поворот. Неравномерный масштаб у родителя даёт shear, который Transform не хранит».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Transform.TransformPoint.html" target="_blank">Transform.TransformPoint</a> <span>— и рядом TransformDirection / TransformVector с пояснением различий</span></li>
+<li><a href="https://paroj.github.io/gltut/Illumination/Tut09%20Normal%20Transformation.html" target="_blank">Learning Modern 3D Graphics Programming — Normal Transformation</a> <span>— вывод inverse-transpose с картинками</span></li>
+</ul></div>`},
+
+{n:365,c:"Math",p:"mid",
+q:`Matrices in Unity: TRS composition, column-major storage, extracting position/rotation/scale, and why localToWorldMatrix of a child includes its parents.`,
+qru:`Матрицы в Unity: композиция TRS, хранение по столбцам, извлечение позиции/поворота/масштаба и почему localToWorldMatrix ребёнка включает родителей.`,
+a:`<code>Matrix4x4.TRS(t, r, s)</code> builds <code>T · R · S</code>: with column vectors the rightmost factor applies first, so a point is scaled, then rotated, then translated. Unity stores matrices column-major and indexes them <code>m[row, column]</code>; the columns are the transformed basis: <code>GetColumn(0..2)</code> are the object's x/y/z axes in world space (already scaled, so their lengths are the scale factors) and <code>GetColumn(3)</code> is the position. That is how you decompose: position = column 3; scale = lengths of columns 0–2 (sign is ambiguous under negative scale); rotation = <code>m.rotation</code>, or <code>LookRotation(column2, column1)</code> after normalising. A child's <code>localToWorldMatrix</code> is <code>parent.localToWorldMatrix · localTRS</code>, recursively — each level multiplies in, which is why deep hierarchies cost transform updates, and why <code>worldToLocalMatrix</code> is the inverse of that product. For a TRS matrix the inverse is cheap (transpose the rotation, invert the scale, negate the translation), but <code>Matrix4x4.inverse</code> is the general algorithm — prefer <code>worldToLocalMatrix</code>, which Unity maintains. <code>MultiplyPoint</code> does a full 4×4 multiply with perspective divide (needed for projection matrices); <code>MultiplyPoint3x4</code> skips the divide and is what you want for affine transforms; <code>MultiplyVector</code> ignores translation. Reversed-Z and clip-space conventions are the rendering-side matrix questions (see the MVP question). <code>Matrix4x4</code> is a 64-byte struct — pass it <code>in</code>, and use <code>Unity.Mathematics.float4x4</code> for Burst.`,
+aru:`<code>Matrix4x4.TRS(t, r, s)</code> строит <code>T · R · S</code>: при векторах-столбцах первым применяется правый множитель, так что точка масштабируется, затем поворачивается, затем переносится. Unity хранит матрицы по столбцам и индексирует <code>m[row, column]</code>; столбцы — преобразованный базис: <code>GetColumn(0..2)</code> — оси x/y/z объекта в мировых координатах (уже с масштабом, поэтому их длины и есть коэффициенты масштаба), а <code>GetColumn(3)</code> — позиция. Так и раскладывают: позиция — столбец 3; масштаб — длины столбцов 0–2 (знак неоднозначен при отрицательном масштабе); поворот — <code>m.rotation</code> или <code>LookRotation(column2, column1)</code> после нормализации. <code>localToWorldMatrix</code> ребёнка — это <code>parent.localToWorldMatrix · localTRS</code>, рекурсивно: каждый уровень домножается, поэтому глубокие иерархии дороги при обновлении трансформов, а <code>worldToLocalMatrix</code> — обратная к этому произведению. Для TRS-матрицы обратная дешёвая (транспонировать поворот, обратить масштаб, отрицать перенос), но <code>Matrix4x4.inverse</code> — общий алгоритм; предпочитайте <code>worldToLocalMatrix</code>, которую Unity поддерживает сама. <code>MultiplyPoint</code> делает полное умножение 4×4 с перспективным делением (нужно для проекционных матриц); <code>MultiplyPoint3x4</code> пропускает деление — это то, что нужно для аффинных преобразований; <code>MultiplyVector</code> игнорирует перенос. Reversed-Z и соглашения clip space — матричные вопросы со стороны рендера (см. вопрос про MVP). <code>Matrix4x4</code> — структура на 64 байта: передавайте её через <code>in</code>, а для Burst используйте <code>Unity.Mathematics.float4x4</code>.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Матрица объекта — это «его оси и его начало координат, записанные в мировых координатах»: три столбца — куда смотрят его x, y, z (и какой они длины), четвёртый — где он стоит. Матрица ребёнка — оси родителя, «пересказанные» через оси ребёнка, поэтому она множится по цепочке до корня.</p>
+<h3>Код</h3>
+<pre>Matrix4x4 m = transform.localToWorldMatrix;
+
+<span class="cm">// Разложение</span>
+Vector3 position = m.GetColumn(3);
+Vector3 scale    = new(m.GetColumn(0).magnitude, m.GetColumn(1).magnitude, m.GetColumn(2).magnitude);
+Quaternion rot   = m.rotation;                          <span class="cm">// или LookRotation(col2.normalized, col1.normalized)</span>
+
+<span class="cm">// Композиция: сначала S, потом R, потом T (правый множитель применяется первым)</span>
+Matrix4x4 trs = Matrix4x4.TRS(position, rot, scale);    <span class="cm">// == T * R * S</span>
+
+<span class="cm">// Иерархия</span>
+Matrix4x4 childWorld = parent.localToWorldMatrix * Matrix4x4.TRS(child.localPosition, child.localRotation, child.localScale);
+
+<span class="cm">// Применение</span>
+Vector3 p = m.MultiplyPoint3x4(localPoint);            <span class="cm">// аффинно, без деления — быстро</span>
+Vector3 d = m.MultiplyVector(localDir);                <span class="cm">// без переноса</span>
+Vector3 clip = camera.projectionMatrix.MultiplyPoint(viewPos);   <span class="cm">// здесь деление нужно</span>
+
+<span class="cm">// Обратная: не m.inverse, а готовая</span>
+Vector3 local = transform.worldToLocalMatrix.MultiplyPoint3x4(worldPoint);</pre>
+<div class="tip">Проверка на понимание порядка: <code>Matrix4x4.Rotate(r) * Matrix4x4.Scale(s)</code> и <code>Scale(s) * Rotate(r)</code> дают разные матрицы; первая — «повернуть масштабированный объект» (обычный TRS), вторая — масштаб в мировых осях, тот самый shear.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«TRS = T·R·S, правый применяется первым. Столбцы — оси и позиция, отсюда разложение. Иерархия — произведение вверх до корня. MultiplyPoint3x4 для аффинных, MultiplyPoint только для проекции. Обратную не считаю — беру worldToLocalMatrix».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Matrix4x4.html" target="_blank">Matrix4x4 (Script Reference)</a> <span>— соглашения о хранении и все методы</span></li>
+<li><a href="https://gamemath.com/book/matrixintro.html" target="_blank">3D Math Primer — Introduction to matrices</a> <span>— вектор-строки vs вектор-столбцы, порядок умножения</span></li>
+</ul></div>`},
+
+{n:366,c:"Math",p:"mid",
+q:`Projecting, reflecting and measuring angles: ProjectOnPlane for slopes, Reflect for bounces, Angle vs SignedAngle, and clamping a direction into a cone.`,
+qru:`Проекции, отражения и углы: ProjectOnPlane для склонов, Reflect для отскоков, Angle против SignedAngle и ограничение направления конусом.`,
+a:`All four are one-line dot-product identities worth being able to write from scratch. <code>Project(v, n) = n · Dot(v, n) / Dot(n, n)</code> (just <code>n · Dot(v, n)</code> for a unit normal), and <code>ProjectOnPlane(v, n) = v - Project(v, n)</code>: the move input projected onto the ground plane is how a character keeps a constant speed up and down slopes instead of driving into the hill or floating off it — remember to renormalise to the original magnitude if you want speed preserved rather than the horizontal component. <code>Reflect(v, n) = v - 2 · Dot(v, n) · n</code> with a unit normal: bounces, ricochets, mirror directions; scale the result for restitution. <code>Vector3.Angle</code> returns the unsigned angle in degrees (0–180) via a clamped acos; <code>SignedAngle(from, to, axis)</code> adds the sign from <code>Dot(Cross(from, to), axis)</code> — the axis is the plane you measure in (use <code>Vector3.up</code> for yaw), and forgetting to pass the intended axis is the standard bug. Clamping a direction to a cone: if <code>Angle(axis, dir) &gt; maxAngle</code>, use <code>Vector3.RotateTowards(axis, dir, maxAngle * Deg2Rad, 0)</code> — it rotates the axis toward the direction by at most that angle, which is exactly the cone boundary; this is aim assist, head-look limits and turret arcs. Two habits: work with radians vs degrees explicitly (Unity's Vector API speaks degrees, <code>Mathf</code> trig speaks radians), and avoid acos in inner loops by comparing cosines.`,
+aru:`Все четыре — однострочные тождества на скалярном произведении, которые стоит уметь вывести с нуля. <code>Project(v, n) = n · Dot(v, n) / Dot(n, n)</code> (для единичной нормали просто <code>n · Dot(v, n)</code>), а <code>ProjectOnPlane(v, n) = v - Project(v, n)</code>: ввод движения, спроецированный на плоскость земли, — так персонаж держит постоянную скорость вверх и вниз по склону вместо того, чтобы упираться в гору или отрываться от неё; не забудьте вернуть исходную длину, если нужна сохранённая скорость, а не горизонтальная составляющая. <code>Reflect(v, n) = v - 2 · Dot(v, n) · n</code> с единичной нормалью: отскоки, рикошеты, зеркальные направления; масштабируйте результат для упругости. <code>Vector3.Angle</code> возвращает беззнаковый угол в градусах (0–180) через acos с clamp; <code>SignedAngle(from, to, axis)</code> добавляет знак из <code>Dot(Cross(from, to), axis)</code> — ось это плоскость измерения (для yaw — <code>Vector3.up</code>), и забытая ось — стандартный баг. Ограничение направления конусом: если <code>Angle(axis, dir) &gt; maxAngle</code>, то <code>Vector3.RotateTowards(axis, dir, maxAngle * Deg2Rad, 0)</code> — поворачивает ось к направлению не более чем на этот угол, то есть ровно на границу конуса; это aim assist, лимиты поворота головы, сектора турелей. Две привычки: явно различать радианы и градусы (Vector API Unity говорит в градусах, тригонометрия <code>Mathf</code> — в радианах) и избегать acos во внутренних циклах, сравнивая косинусы.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Проекция — «тень вектора на ось». Проекция на плоскость — «вектор минус его тень на нормаль». Отражение — «убрать тень на нормаль дважды». Знак угла — «с какой стороны от оси». Всё это — dot и одно-два умножения.</p>
+<h3>Код</h3>
+<pre><span class="cm">// Движение по склону с сохранением скорости</span>
+Vector3 onSlope = Vector3.ProjectOnPlane(moveInput, groundNormal).normalized * moveInput.magnitude;
+
+<span class="cm">// Отскок с упругостью 0.6</span>
+Vector3 bounced = Vector3.Reflect(velocity, hit.normal) * 0.6f;
+
+<span class="cm">// Yaw к цели со знаком — ось обязательна</span>
+Vector3 flatTo = Vector3.ProjectOnPlane(target.position - transform.position, Vector3.up);
+float yaw = Vector3.SignedAngle(transform.forward, flatTo, Vector3.up);   <span class="cm">// -180..180, минус — слева</span>
+
+<span class="cm">// Ограничить направление взгляда конусом 60°</span>
+Vector3 ClampToCone(Vector3 axis, Vector3 dir, float maxDeg)
+{
+    if (Vector3.Angle(axis, dir) &lt;= maxDeg) return dir;
+    return Vector3.RotateTowards(axis, dir, maxDeg * Mathf.Deg2Rad, 0f) * dir.magnitude;
+}
+
+<span class="cm">// Ручной вывод — чтобы не зависеть от API в Burst-коде</span>
+static float3 Reflect(float3 v, float3 n) =&gt; v - 2f * math.dot(v, n) * n;
+static float3 ProjectOnPlane(float3 v, float3 n) =&gt; v - n * math.dot(v, n);   <span class="cm">// n единичная</span></pre>
+<div class="tip"><code>SignedAngle</code> без проекции на плоскость даёт угол в 3D с знаком относительно оси — для yaw сначала спроецируйте оба вектора на плоскость, иначе наклон цели вверх/вниз исказит результат.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Проекция — n·dot(v,n); на плоскость — v минус проекция; отражение — минус две проекции. SignedAngle — знак через cross·axis, ось обязательна. Конус — RotateTowards от оси на maxAngle. Градусы в Vector API, радианы в Mathf».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Vector3.ProjectOnPlane.html" target="_blank">Vector3.ProjectOnPlane</a> <span>— и рядом Project / Reflect / SignedAngle / RotateTowards</span></li>
+<li><a href="https://www.youtube.com/playlist?list=PLImQaTpSAdsD88wprTConznD1OY1EfK_V" target="_blank">Freya Holmér — Math for Game Devs</a> <span>— вывод проекции и отражения на доске</span></li>
+</ul></div>`},
+
+{n:367,c:"Math",p:"mid",
+q:`Splines for gameplay: Bezier vs Catmull-Rom vs Hermite, why t is not distance, and how you move at constant speed along a curve.`,
+qru:`Сплайны в геймплее: Безье, Катмулл-Ром и Эрмит, почему t — не расстояние и как двигаться по кривой с постоянной скоростью.`,
+a:`A cubic Bezier is defined by two endpoints and two control handles that the curve does <em>not</em> pass through; tangents at the ends are the handle directions, which makes it the artist-friendly choice (every vector editor uses it) and de Casteljau's repeated-lerp construction makes evaluation trivial. Catmull-Rom passes <em>through</em> every control point with tangents derived from the neighbours — ideal for "route through these waypoints", at the cost of needing phantom points at the ends and no local control of tangent length. Hermite is the underlying form of both: a point and a tangent at each end; Catmull-Rom is a Hermite with automatic tangents, and a Bezier converts to it exactly. Continuity is what a camera notices: C0 is connected, C1 has matching velocity, C2 matching acceleration — a camera on a C1-but-not-C2 path shows a visible jerk at each joint. The trap everyone hits: the parameter <code>t</code> is not arc length — equal steps in <code>t</code> produce unequal distances, so an object animated by <code>t += speed · dt</code> speeds up and slows down along the curve. Constant speed needs arc-length reparameterisation: sample the curve, accumulate segment lengths into a table, and binary-search the table to map a distance to a <code>t</code> (Unity's Splines package does this in <code>SplineUtility.GetPointAtLinearDistance</code>). Uses: rails and paths, roads and rivers (extrude a profile along the spline), camera paths, projectile arcs, procedural meshes; for physics-driven objects, sample the spline for a target and steer toward it rather than teleporting along it.`,
+aru:`Кубический Безье задаётся двумя концами и двумя управляющими ручками, через которые кривая <em>не</em> проходит; касательные на концах — направления ручек, что делает его удобным для художников (так работает любой векторный редактор), а построение де Кастельжо через повторный lerp делает вычисление тривиальным. Катмулл-Ром проходит <em>через</em> каждую контрольную точку с касательными из соседей — идеален для «маршрут через эти путевые точки», ценой фантомных точек на концах и отсутствия локального контроля длины касательных. Эрмит — базовая форма обоих: точка и касательная на каждом конце; Катмулл-Ром — Эрмит с автоматическими касательными, а Безье переводится в него точно. Непрерывность — то, что замечает камера: C0 — соединены, C1 — совпадает скорость, C2 — совпадает ускорение; камера на пути с C1, но без C2, показывает заметный рывок на каждом стыке. Ловушка, в которую попадают все: параметр <code>t</code> — не длина дуги, равные шаги по <code>t</code> дают неравные расстояния, поэтому объект, анимированный через <code>t += speed · dt</code>, ускоряется и замедляется вдоль кривой. Постоянная скорость требует репараметризации по длине дуги: просэмплировать кривую, накопить длины сегментов в таблицу и бинарным поиском отображать расстояние в <code>t</code> (пакет Unity Splines делает это в <code>SplineUtility.GetPointAtLinearDistance</code>). Применения: рельсы и пути, дороги и реки (выдавливание профиля вдоль сплайна), траектории камеры, дуги снарядов, процедурные меши; для физических объектов — сэмплировать сплайн как цель и рулить к ней, а не телепортировать вдоль.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Сплайн — это способ провести гладкую линию через несколько точек. Безье управляется «ручками», Катмулл-Ром идёт прямо через точки. Общая ловушка: число t от 0 до 1 — это «доля формулы», а не «доля пути»; чтобы ехать ровно, нужно заранее измерить кривую линейкой.</p>
+<h3>Код</h3>
+<pre><span class="cm">// Кубический Безье через де Кастельжо (три уровня lerp)</span>
+static Vector3 Bezier(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
+{
+    var a = Vector3.Lerp(p0, p1, t); var b = Vector3.Lerp(p1, p2, t); var c = Vector3.Lerp(p2, p3, t);
+    var d = Vector3.Lerp(a, b, t);   var e = Vector3.Lerp(b, c, t);
+    return Vector3.Lerp(d, e, t);
+}
+
+<span class="cm">// Катмулл-Ром: проходит через p1 и p2, p0/p3 — соседи для касательных</span>
+static Vector3 CatmullRom(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
+{
+    float t2 = t * t, t3 = t2 * t;
+    return 0.5f * ((2f * p1) + (-p0 + p2) * t + (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 + (-p0 + 3f * p1 - 3f * p2 + p3) * t3);
+}
+
+<span class="cm">// Таблица длин дуги: расстояние → t</span>
+float[] cumulative = new float[N + 1];               <span class="cm">// cumulative[i] = длина от t=0 до t=i/N</span>
+for (int i = 1; i &lt;= N; i++)
+    cumulative[i] = cumulative[i - 1] + Vector3.Distance(Eval((i - 1f) / N), Eval((float)i / N));
+
+float TAtDistance(float d)
+{
+    int idx = Array.BinarySearch(cumulative, d); if (idx &lt; 0) idx = ~idx;
+    idx = Mathf.Clamp(idx, 1, N);
+    float segT = Mathf.InverseLerp(cumulative[idx - 1], cumulative[idx], d);
+    return Mathf.Lerp((idx - 1f) / N, (float)idx / N, segT);
+}
+<span class="cm">// движение: dist += speed * dt;  pos = Eval(TAtDistance(dist));</span></pre>
+<div class="tip">В Unity есть пакет <code>com.unity.splines</code>: контейнер, редактор, <code>SplineUtility.GetPointAtLinearDistance</code> и <code>SplineAnimate</code>. На собеседовании ценят, что вы знаете и пакет, и что он делает под капотом.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Безье — ручки, Катмулл-Ром — через точки, оба — частные случаи Эрмита. Для камер важна C2. t — не расстояние: для постоянной скорости строю таблицу длин дуги и ищу t бинарным поиском. В Unity это пакет Splines».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://www.youtube.com/watch?v=jvPPXbo87ds" target="_blank">Freya Holmér — The Continuity of Splines</a> <span>— полный визуальный разбор всех семейств и непрерывности</span></li>
+<li><a href="https://pomax.github.io/bezierinfo/" target="_blank">A Primer on Bézier Curves</a> <span>— интерактивный справочник, включая длину дуги</span></li>
+<li><a href="https://docs.unity3d.com/Packages/com.unity.splines@2.7/manual/index.html" target="_blank">Unity Splines package</a> <span>— официальный инструмент</span></li>
+</ul></div>`},
+
+{n:368,c:"Math",p:"core",
+q:`Randomness in games: UnityEngine.Random vs System.Random vs Unity.Mathematics.Random, uniform points in a circle, weighted picks, shuffles, and keeping determinism.`,
+qru:`Случайность в играх: UnityEngine.Random, System.Random и Unity.Mathematics.Random, равномерные точки в круге, взвешенный выбор, перемешивание и сохранение детерминизма.`,
+a:`Three generators, three contracts. <code>UnityEngine.Random</code> is one global Xorshift state, main-thread only, seeded with <code>InitState</code>, and shared by everything — including particle systems and any package that calls it — so it is unsuitable for anything that must replay. <code>System.Random</code> is per-instance, heap-allocated, not thread-safe; fine for tooling. <code>Unity.Mathematics.Random</code> is a struct: cheap to copy, Burst-compatible, one per job/thread/system, deterministic from its seed (seed 0 is invalid — use <code>CreateFromIndex</code>). Determinism rule: give each system that must be reproducible (procgen, combat rolls, lockstep simulation) its own generator with a recorded seed, and never let cosmetics draw from it — one extra particle burst desynchronises a replay. Distributions: a random point in a circle is <em>not</em> a random angle plus a random radius (that clusters at the centre) — use <code>r = R · sqrt(u)</code>, or <code>Random.insideUnitCircle</code>, which is uniform by area; <code>onUnitSphere</code> gives directions, <code>insideUnitSphere</code> volume. Weighted choice: cumulative weights plus binary search (O(log n)), or the alias method for O(1) when the table is reused many times. Shuffle: Fisher–Yates, never <code>OrderBy(x =&gt; rng.Next())</code>. Gaussian: Box–Muller, or sum of a few uniforms for "good enough". API trap: <code>Random.Range(int, int)</code> excludes the max, <code>Range(float, float)</code> includes it. And "random" that feels random to players is usually shaped: shuffle bags for drops, pity timers, and streak breakers, because true uniform randomness is perceived as unfair.`,
+aru:`Три генератора — три контракта. <code>UnityEngine.Random</code> — одно глобальное состояние Xorshift, только главный поток, сидируется через <code>InitState</code> и делится со всем — включая системы частиц и любой пакет, который его зовёт, — поэтому не годится ни для чего, что должно воспроизводиться. <code>System.Random</code> — экземпляр на куче, не потокобезопасен; хорош для инструментов. <code>Unity.Mathematics.Random</code> — структура: дёшево копируется, совместима с Burst, по одной на job/поток/систему, детерминирована от сида (сид 0 недопустим — используйте <code>CreateFromIndex</code>). Правило детерминизма: каждой системе, которая должна воспроизводиться (процедурная генерация, броски в бою, lockstep-симуляция), — свой генератор с записанным сидом, и косметика из него никогда не берёт — один лишний всплеск частиц рассинхронизирует реплей. Распределения: случайная точка в круге — <em>не</em> случайный угол плюс случайный радиус (это сгущается к центру) — берите <code>r = R · sqrt(u)</code> или <code>Random.insideUnitCircle</code>, равномерный по площади; <code>onUnitSphere</code> даёт направления, <code>insideUnitSphere</code> — объём. Взвешенный выбор: накопленные веса плюс бинарный поиск (O(log n)) или метод алиасов для O(1), если таблица используется многократно. Перемешивание: Фишер–Йетс, никогда <code>OrderBy(x =&gt; rng.Next())</code>. Нормальное распределение: Бокс–Мюллер или сумма нескольких равномерных для «достаточно хорошо». Ловушка API: <code>Random.Range(int, int)</code> исключает максимум, <code>Range(float, float)</code> включает. И «случайность», которая кажется игрокам случайной, обычно сформирована: мешки-перемешивания для дропа, pity-таймеры, разрыватели серий — честная равномерность воспринимается как несправедливость.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Генератор случайных чисел — это длинная лента чисел, начинающаяся с сида. Если два прогона читают ленту в одном порядке — они одинаковы. Стоит кому-то постороннему (частицам, UI) прочитать одно число — порядок сбит, реплей разъехался. Поэтому у каждой важной системы своя лента.</p>
+<h3>Код</h3>
+<pre><span class="cm">// Детерминизм: своя лента на систему, сид записан в сейв/реплей</span>
+var combatRng = Unity.Mathematics.Random.CreateFromIndex(matchSeed ^ 0x9E3779B9u);
+var lootRng   = Unity.Mathematics.Random.CreateFromIndex(matchSeed ^ 0x85EBCA6Bu);
+<span class="cm">// косметика — из UnityEngine.Random, ей можно быть недетерминированной</span>
+
+<span class="cm">// Равномерная точка в круге: sqrt обязателен</span>
+float a = rng.NextFloat(0f, 2f * math.PI);
+float r = R * math.sqrt(rng.NextFloat());                  <span class="cm">// без sqrt — сгущение в центре</span>
+var p = new float2(math.cos(a), math.sin(a)) * r;
+
+<span class="cm">// Взвешенный выбор: накопленные веса + бинарный поиск</span>
+float[] cumulative = ...;                                  <span class="cm">// [w0, w0+w1, ...], последний == total</span>
+int Pick(float u) { int i = Array.BinarySearch(cumulative, u * cumulative[^1]); return i &lt; 0 ? ~i : i; }
+
+<span class="cm">// Фишер–Йетс</span>
+for (int i = items.Length - 1; i &gt; 0; i--)
+{
+    int j = rng.NextInt(0, i + 1);                         <span class="cm">// включительно i</span>
+    (items[i], items[j]) = (items[j], items[i]);
+}
+
+<span class="cm">// Ловушка Range</span>
+UnityEngine.Random.Range(0, 3);      <span class="cm">// 0, 1, 2</span>
+UnityEngine.Random.Range(0f, 3f);    <span class="cm">// [0, 3] включительно</span></pre>
+<div class="tip">Проверка реплея в CI: прогнать матч дважды с одним сидом и сравнить хэш состояния каждые N тиков. Расхождение — либо чужой вызов генератора, либо недетерминированная операция (порядок итерации по Dictionary, float в разных потоках).</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«UnityEngine.Random — глобальный и общий, для реплеев нельзя; Mathematics.Random — структура, по одной на систему и job, детерминирована. Точка в круге — через sqrt. Взвешенный выбор — накопленные веса и бинарный поиск. Перемешивание — Фишер–Йетс. Ощущаемая честность — мешки и pity, не чистая равномерность».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/Packages/com.unity.mathematics@1.3/api/Unity.Mathematics.Random.html" target="_blank">Unity.Mathematics.Random</a> <span>— CreateFromIndex, NextFloat, семантика сида</span></li>
+<li><a href="https://www.keithschwarz.com/darts-dice-coins/" target="_blank">Keith Schwarz — Darts, Dice, and Coins</a> <span>— все способы взвешенного выбора, включая метод алиасов</span></li>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Random.html" target="_blank">UnityEngine.Random</a> <span>— InitState, state, поведение Range</span></li>
+</ul></div>`},
+
+{n:369,c:"Math",p:"mid",
+q:`Intersection tests a gameplay programmer should derive by hand: ray-plane, ray-sphere, AABB-AABB, point-in-triangle — and when to use them instead of Physics.`,
+qru:`Тесты пересечения, которые геймплейный программист должен уметь вывести: луч-плоскость, луч-сфера, AABB-AABB, точка в треугольнике — и когда использовать их вместо Physics.`,
+a:`Ray–plane: with plane normal <code>n</code> and point <code>p0</code>, solve <code>Dot(o + t·d - p0, n) = 0</code> → <code>t = Dot(p0 - o, n) / Dot(d, n)</code>; guard <code>Dot(d, n) ≈ 0</code> (parallel) and <code>t &lt; 0</code> (behind). Ray–sphere: project the centre onto the ray, <code>tc = Dot(c - o, d)</code>, perpendicular distance² <code>= |c - o|² - tc²</code>; no hit if that exceeds <code>r²</code>, otherwise <code>t = tc - sqrt(r² - dist²)</code> — the geometric form avoids the quadratic and its precision problems. AABB–AABB: overlap on every axis, <code>minA ≤ maxB &amp;&amp; minB ≤ maxA</code> three times — the broadphase everything else sits on. Point-in-triangle: barycentric coordinates via two dot products (or three edge-function signs in 2D); the same barycentrics interpolate UVs, normals and heights across the triangle, which is how you sample terrain height or decal placement without physics. Closest point between segments is the capsule test and the one worth learning from Ericson's book rather than deriving live. Why do this by hand at all: Physics only knows colliders, runs its queries at collider granularity and needs synced transforms; hand tests run against any data (UI rects, gameplay volumes, navmesh polygons, a grid you own), inside jobs and Burst, with no allocation, and with exactly the precision behaviour you chose. Unity gives you <code>Plane.Raycast</code>, <code>Bounds.IntersectRay</code>, <code>Bounds.Intersects</code> for the common ones — know which exist so you do not reimplement them, and know the maths so you can when they do not fit.`,
+aru:`Луч–плоскость: при нормали <code>n</code> и точке <code>p0</code> решаем <code>Dot(o + t·d - p0, n) = 0</code> → <code>t = Dot(p0 - o, n) / Dot(d, n)</code>; защита от <code>Dot(d, n) ≈ 0</code> (параллельно) и <code>t &lt; 0</code> (позади). Луч–сфера: проецируем центр на луч, <code>tc = Dot(c - o, d)</code>, квадрат перпендикулярного расстояния <code>= |c - o|² - tc²</code>; попадания нет, если он больше <code>r²</code>, иначе <code>t = tc - sqrt(r² - dist²)</code> — геометрическая форма обходит квадратное уравнение и его проблемы с точностью. AABB–AABB: перекрытие по каждой оси, <code>minA ≤ maxB &amp;&amp; minB ≤ maxA</code> трижды — broadphase, на котором стоит всё остальное. Точка в треугольнике: барицентрические координаты через два скалярных произведения (или три знака edge-функций в 2D); те же барицентрические координаты интерполируют UV, нормали и высоты по треугольнику — так сэмплируют высоту террейна или ставят декали без физики. Ближайшие точки двух отрезков — это тест капсул, и его стоит выучить по книге Эриксона, а не выводить вживую. Зачем вообще руками: Physics знает только коллайдеры, работает на их гранулярности и требует синхронизированных трансформов; ручные тесты работают с любыми данными (прямоугольники UI, геймплейные объёмы, полигоны навмеша, ваша сетка), внутри job и Burst, без аллокаций и с ровно той точностью, которую вы выбрали. Unity даёт <code>Plane.Raycast</code>, <code>Bounds.IntersectRay</code>, <code>Bounds.Intersects</code> для типовых случаев — знайте, что они есть, чтобы не переписывать, и знайте математику, чтобы написать, когда они не подходят.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Каждый тест — один и тот же вопрос: «где вдоль луча (или по осям) мы касаемся фигуры». Плоскость — одно деление, сфера — одна проекция и один корень, коробки — три сравнения на ось, треугольник — «с какой стороны от каждого ребра».</p>
+<h3>Код (Unity.Mathematics, годится для Burst)</h3>
+<pre>static bool RayPlane(float3 o, float3 d, float3 p0, float3 n, out float t)
+{
+    float denom = math.dot(d, n);
+    t = 0f;
+    if (math.abs(denom) &lt; 1e-6f) return false;             <span class="cm">// параллельно</span>
+    t = math.dot(p0 - o, n) / denom;
+    return t &gt;= 0f;
+}
+
+static bool RaySphere(float3 o, float3 d, float3 c, float r, out float t)   <span class="cm">// d единичный</span>
+{
+    float3 oc = c - o;
+    float tc = math.dot(oc, d);
+    float d2 = math.dot(oc, oc) - tc * tc;                  <span class="cm">// квадрат расстояния от центра до луча</span>
+    t = 0f;
+    if (d2 &gt; r * r) return false;
+    float th = math.sqrt(r * r - d2);
+    t = tc - th;                                            <span class="cm">// ближняя точка; если &lt; 0 — старт внутри, брать tc + th</span>
+    return t &gt;= 0f || tc + th &gt;= 0f;
+}
+
+static bool AabbOverlap(float3 minA, float3 maxA, float3 minB, float3 maxB) =&gt;
+    math.all(minA &lt;= maxB) &amp;&amp; math.all(minB &lt;= maxA);
+
+<span class="cm">// Барицентрические координаты: точка p в треугольнике abc</span>
+static bool PointInTriangle(float3 p, float3 a, float3 b, float3 c, out float3 bary)
+{
+    float3 v0 = b - a, v1 = c - a, v2 = p - a;
+    float d00 = math.dot(v0, v0), d01 = math.dot(v0, v1), d11 = math.dot(v1, v1);
+    float d20 = math.dot(v2, v0), d21 = math.dot(v2, v1);
+    float denom = d00 * d11 - d01 * d01;
+    float v = (d11 * d20 - d01 * d21) / denom;
+    float w = (d00 * d21 - d01 * d20) / denom;
+    bary = new float3(1f - v - w, v, w);
+    return v &gt;= 0f &amp;&amp; w &gt;= 0f &amp;&amp; v + w &lt;= 1f;
+}
+<span class="cm">// высота на треугольнике: h = bary.x * a.y + bary.y * b.y + bary.z * c.y</span></pre>
+<div class="tip">Готовое в Unity: <code>Plane.Raycast</code>, <code>Bounds.IntersectRay</code>, <code>Bounds.Intersects</code>, <code>Rect.Overlaps</code>. Для капсул и OBB — «Real-Time Collision Detection» Эриксона, глава 5, это стандарт индустрии.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Луч–плоскость через dot и одно деление с защитой от параллельности; луч–сфера геометрически через проекцию центра; AABB — по осям; точка в треугольнике — барицентрические, они же дают интерполяцию. Руками — потому что Physics знает только коллайдеры и не работает в jobs».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://realtimecollisiondetection.net/" target="_blank">Christer Ericson — Real-Time Collision Detection</a> <span>— справочник по всем примитивам; книга, которую цитируют на собеседованиях</span></li>
+<li><a href="https://iquilezles.org/articles/intersectors/" target="_blank">Inigo Quilez — Intersectors</a> <span>— компактные формулы луч-примитив с кодом</span></li>
+<li><a href="https://gamemath.com/book/geomtests.html" target="_blank">3D Math Primer — Geometric tests</a> <span>— выводы для классических тестов</span></li>
+</ul></div>`},
+
+{n:370,c:"Math",p:"mid",
+q:`Lerp, InverseLerp and remap, SmoothStep and easing, AnimationCurve: how you shape values in gameplay, and what each one costs.`,
+qru:`Lerp, InverseLerp и remap, SmoothStep и easing, AnimationCurve: как формируют значения в геймплее и сколько стоит каждый инструмент.`,
+a:`<code>Lerp(a, b, t) = a + (b - a)·t</code> maps 0..1 onto a range; <code>InverseLerp(a, b, v) = (v - a) / (b - a)</code> maps a range back onto 0..1. Chained, they are the most useful one-liner in gameplay code: <code>remap = Lerp(outMin, outMax, InverseLerp(inMin, inMax, v))</code> — distance to volume, health to colour, speed to FOV. <code>Mathf.Lerp</code> clamps <code>t</code> and <code>LerpUnclamped</code> does not, which matters for extrapolation and for the fps-independent damping formula. <code>SmoothStep</code> (<code>3t² - 2t³</code>) has zero slope at both ends, so it removes the visible "start" and "stop" of a linear blend; easing curves (quadratic, cubic, back, elastic, bounce) are the same idea with a chosen shape and are what makes UI and camera motion feel intentional — ease-out for things arriving, ease-in for things leaving, back/elastic for playful emphasis. <code>AnimationCurve</code> is the designer-editable version: <code>Evaluate</code> does a binary search over keys plus a cubic Hermite evaluation, cheap enough for hundreds of calls per frame, not for millions; bake it into a lookup array for jobs and Burst (<code>AnimationCurve</code> is a managed object and cannot be used there). Colour is the recurring trap: lerping in gamma space darkens midpoints, so interpolate in linear space or use <code>Color.Lerp</code> knowingly. And keep remap inputs clamped unless extrapolation is the intent — an unclamped <code>InverseLerp</code> quietly produces 1.3 and the blend explodes.`,
+aru:`<code>Lerp(a, b, t) = a + (b - a)·t</code> переводит 0..1 в диапазон; <code>InverseLerp(a, b, v) = (v - a) / (b - a)</code> переводит диапазон обратно в 0..1. Вместе они — самая полезная строка в геймплейном коде: <code>remap = Lerp(outMin, outMax, InverseLerp(inMin, inMax, v))</code> — расстояние в громкость, здоровье в цвет, скорость в FOV. <code>Mathf.Lerp</code> клампует <code>t</code>, <code>LerpUnclamped</code> — нет, что важно для экстраполяции и для формулы затухания, независимой от fps. <code>SmoothStep</code> (<code>3t² - 2t³</code>) имеет нулевой наклон на обоих концах, поэтому убирает заметные «старт» и «стоп» линейного бленда; easing-кривые (квадратичная, кубическая, back, elastic, bounce) — та же идея с выбранной формой, и именно они делают движение UI и камеры осмысленным — ease-out для прибывающего, ease-in для уходящего, back/elastic для игрового акцента. <code>AnimationCurve</code> — версия для дизайнера: <code>Evaluate</code> делает бинарный поиск по ключам плюс кубический Эрмит — достаточно дёшево для сотен вызовов за кадр, но не для миллионов; для jobs и Burst запекайте в массив-таблицу (<code>AnimationCurve</code> — управляемый объект, там недоступен). Постоянная ловушка — цвет: lerp в гамма-пространстве затемняет середину, поэтому интерполируйте в линейном или используйте <code>Color.Lerp</code> осознанно. И держите входы remap клампованными, если экстраполяция не цель — неклампованный <code>InverseLerp</code> тихо выдаёт 1.3, и бленд взрывается.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Lerp — «сколько между a и b». InverseLerp — «где v между a и b». Соединили — получили перевод из одной шкалы в другую. SmoothStep и easing — «как именно разгоняться и тормозить». AnimationCurve — то же самое, но нарисованное дизайнером.</p>
+<h3>Код</h3>
+<pre><span class="cm">// Remap: расстояние 5..30 м → громкость 1..0</span>
+float volume = Mathf.Lerp(1f, 0f, Mathf.InverseLerp(5f, 30f, distance));
+
+<span class="cm">// Универсальный помощник — с клампом по умолчанию</span>
+static float Remap(float v, float inMin, float inMax, float outMin, float outMax) =&gt;
+    Mathf.Lerp(outMin, outMax, Mathf.InverseLerp(inMin, inMax, v));
+
+<span class="cm">// Easing руками</span>
+static float EaseOutCubic(float t) =&gt; 1f - Mathf.Pow(1f - t, 3f);
+static float EaseInOutSmooth(float t) =&gt; t * t * (3f - 2f * t);      <span class="cm">// SmoothStep</span>
+static float EaseOutBack(float t) { const float c = 1.70158f; return 1f + (c + 1f) * Mathf.Pow(t - 1f, 3f) + c * Mathf.Pow(t - 1f, 2f); }
+
+<span class="cm">// AnimationCurve → таблица для Burst</span>
+NativeArray&lt;float&gt; Bake(AnimationCurve curve, int samples, Allocator alloc)
+{
+    var table = new NativeArray&lt;float&gt;(samples, alloc);
+    for (int i = 0; i &lt; samples; i++) table[i] = curve.Evaluate(i / (samples - 1f));
+    return table;
+}
+<span class="cm">// в job: float Sample(float t) → lerp между table[floor], table[ceil]</span></pre>
+<div class="tip">Для UI-анимаций ease-out «прибывающего» элемента и ease-in «уходящего» — правило, которое дизайнеры интерфейсов знают наизусть; программисту достаточно предоставить набор кривых и параметр длительности.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Remap = Lerp(InverseLerp). Clamp по умолчанию, Unclamped — осознанно. SmoothStep и easing задают форму разгона. AnimationCurve — для дизайнера, Evaluate это бинарный поиск плюс Эрмит; для jobs — запекаю в таблицу. Цвет интерполирую в линейном пространстве».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://easings.net/" target="_blank">easings.net</a> <span>— все стандартные easing-функции с формулами и визуализацией</span></li>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/AnimationCurve.Evaluate.html" target="_blank">AnimationCurve.Evaluate</a> <span>— и соседние методы для генерации кривых из кода</span></li>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Mathf.InverseLerp.html" target="_blank">Mathf.InverseLerp</a> <span>— семантика и clamp</span></li>
+</ul></div>`},
+{n:371,c:"Math",p:"core",
+q:`A*: admissible vs consistent heuristics, which heuristic for which movement model, tie-breaking, and when flow fields or hierarchical search beat it.`,
+qru:`A*: допустимые и монотонные эвристики, какая эвристика под какую модель движения, разрешение ничьих и когда flow field или иерархический поиск выигрывают.`,
+a:`A* expands nodes in order of <code>f = g + h</code>: <code>g</code> is the exact cost so far, <code>h</code> an estimate to the goal. If <code>h</code> never overestimates (admissible) the first time the goal is popped its path is optimal; if additionally <code>h(a) ≤ cost(a, b) + h(b)</code> (consistent) no node needs re-expansion, so a simple closed set is correct. The heuristic must match the movement model or it stops being admissible: Manhattan for 4-directional grids, octile (or Chebyshev for equal diagonal cost) for 8-directional, Euclidean for any-angle or navmesh; using Euclidean on a 4-way grid is admissible but weak (many expansions), using Manhattan on an 8-way grid overestimates and returns non-optimal paths. Scaling <code>h</code> by a factor above 1 (weighted A*) trades optimality for speed with a bounded error — a legitimate production knob. Tie-breaking matters more than people expect: many nodes share the same <code>f</code> on open grids; preferring the larger <code>g</code> (or multiplying <code>h</code> by <code>1 + ε</code>) pushes the search toward the goal and can cut expansions several-fold. Data structures: a binary heap keyed by <code>f</code> for the open set, a flat visited/closed array indexed by cell, and path reconstruction from parent indices — no per-node objects. When A* is the wrong tool: hundreds of agents to one target want a flow field (one BFS/Dijkstra from the goal, then every agent just reads a direction); huge maps want hierarchical abstraction (HPA*, or Unity's NavMesh tiles) so most of the search runs on a coarse graph; uniform grids benefit from jump point search. Unity's NavMesh is A* over polygons with the funnel algorithm for string-pulling — the reason paths hug corners.`,
+aru:`A* раскрывает узлы в порядке <code>f = g + h</code>: <code>g</code> — точная стоимость до узла, <code>h</code> — оценка до цели. Если <code>h</code> никогда не завышает (допустимая), путь при первом извлечении цели оптимален; если вдобавок <code>h(a) ≤ cost(a, b) + h(b)</code> (монотонная), ни один узел не требует повторного раскрытия, и простое closed-множество корректно. Эвристика обязана соответствовать модели движения, иначе она перестаёт быть допустимой: манхэттенская для 4-направленных сеток, октильная (или Чебышёва при равной цене диагонали) для 8-направленных, евклидова для any-angle и навмеша; евклидова на 4-направленной сетке допустима, но слаба (много раскрытий), манхэттенская на 8-направленной завышает и даёт неоптимальные пути. Масштабирование <code>h</code> коэффициентом больше 1 (weighted A*) меняет оптимальность на скорость с ограниченной ошибкой — легитимная продакшен-ручка. Разрешение ничьих важнее, чем кажется: на открытых сетках множество узлов имеет одинаковый <code>f</code>; предпочтение большего <code>g</code> (или умножение <code>h</code> на <code>1 + ε</code>) тянет поиск к цели и сокращает раскрытия в разы. Структуры: бинарная куча по <code>f</code> для open, плоский массив visited/closed по индексу клетки, восстановление пути по индексам родителей — без объектов на узел. Когда A* не тот инструмент: сотни агентов к одной цели хотят flow field (один BFS/Дейкстра от цели, затем каждый агент просто читает направление); огромные карты хотят иерархическую абстракцию (HPA* или тайлы NavMesh Unity), чтобы большая часть поиска шла по грубому графу; равномерные сетки выигрывают от jump point search. NavMesh Unity — A* по полигонам с funnel-алгоритмом для спрямления — поэтому пути прижимаются к углам.`,
+d:`
+<h3>Простыми словами</h3>
+<p>A* — это Дейкстра с подсказкой «цель примерно там». Подсказка не должна врать в большую сторону — тогда путь останется кратчайшим. Чем точнее подсказка, тем меньше клеток придётся перебрать. Если подсказка немного завышает — путь чуть длиннее, зато поиск в разы быстрее; иногда это осознанный выбор.</p>
+<h3>Эвристики и код</h3>
+<pre><span class="cm">// Под модель движения</span>
+static float Manhattan(int2 a, int2 b) =&gt; math.abs(a.x - b.x) + math.abs(a.y - b.y);           <span class="cm">// 4 направления</span>
+static float Octile(int2 a, int2 b)                                                              <span class="cm">// 8 направлений, диагональ √2</span>
+{
+    int dx = math.abs(a.x - b.x), dy = math.abs(a.y - b.y);
+    return (dx + dy) + (1.41421356f - 2f) * math.min(dx, dy);
+}
+static float Euclid(int2 a, int2 b) =&gt; math.distance((float2)a, (float2)b);                    <span class="cm">// any-angle / navmesh</span>
+
+<span class="cm">// Ядро: куча по f, плоские массивы, без объектов</span>
+open.Enqueue(start, 0f);  gScore[start] = 0f;
+while (open.TryDequeue(out int node, out float f))
+{
+    if (node == goal) break;
+    if (closed[node]) continue;                <span class="cm">// монотонная h → повторно не раскрываем</span>
+    closed[node] = true;
+    foreach (var (next, cost) in Neighbours(node))
+    {
+        float g = gScore[node] + cost;
+        if (g &gt;= gScore[next]) continue;
+        gScore[next] = g; parent[next] = node;
+        float h = Octile(Pos(next), Pos(goal)) * 1.001f;   <span class="cm">// (1 + ε): ничьи в пользу цели</span>
+        open.Enqueue(next, g + h);
+    }
+}</pre>
+<div class="tip">Когда ко мне приходит «поиск пути тормозит на 200 юнитах» — первый вопрос: они идут к одной цели? Тогда это flow field, а не 200 запусков A*. Второй: карта 1000×1000? Тогда иерархия, а не более быстрая куча.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Допустимая эвристика — оптимальный путь, монотонная — без повторных раскрытий. Манхэттен для 4, октильная для 8, евклид для any-angle. Weighted A* и tie-breaking (1+ε) — ручки скорости. Куча плюс плоские массивы. Много агентов к одной цели — flow field; большая карта — иерархия; NavMesh — A* по полигонам плюс funnel».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://www.redblobgames.com/pathfinding/a-star/introduction.html" target="_blank">Red Blob Games — Introduction to A*</a> <span>— интерактивно, от BFS до A*; лучшее введение</span></li>
+<li><a href="https://theory.stanford.edu/~amitp/GameProgramming/Heuristics.html" target="_blank">Amit Patel — Heuristics</a> <span>— все эвристики, tie-breaking, weighted A*</span></li>
+<li><a href="https://www.redblobgames.com/pathfinding/tower-defense/" target="_blank">Red Blob Games — Flow fields (tower defense)</a> <span>— когда один поиск заменяет сотни</span></li>
+</ul></div>`},
+
+{n:372,c:"Math",p:"mid",
+q:`Steering behaviours and local avoidance: seek/arrive/separation, how forces combine, what RVO/ORCA does, and why crowds jitter.`,
+qru:`Steering-поведения и локальное избегание: seek/arrive/separation, как складываются силы, что делает RVO/ORCA и почему толпы дёргаются.`,
+a:`Reynolds' steering model: each behaviour computes a <em>desired velocity</em>, the steering force is <code>desired - current</code> clamped to a max force, and integration with mass and max speed gives motion that turns smoothly instead of snapping. Seek points the desired velocity at the target at full speed; flee negates it; arrive scales desired speed down inside a slowing radius so the agent stops on the target rather than orbiting it; pursue/evade aim at a predicted future position; wander jitters a target on a circle ahead for natural idling; the flocking trio — separation (push away from close neighbours, weighted by 1/distance), alignment (match neighbours' heading), cohesion (move toward their centre) — produces herds and swarms. Combination is the design problem: weighted sums are simple but cancel each other (an agent stuck between two equal pushes), so production code uses prioritised blending — avoidance first, then seek, then flocking — and stops accumulating once the force budget is spent. Steering alone still lets agents collide, because each ignores what others will do; RVO/ORCA fixes that: every agent computes the set of velocities that would lead to a collision with each neighbour within a time horizon (velocity obstacles), takes half the responsibility for avoiding, and picks the velocity closest to its preferred one outside all those sets — a small linear program per agent per tick. That is what <code>NavMeshAgent</code>'s obstacle avoidance runs, and its quality levels are the neighbour count it considers. Jitter comes from opposing forces flipping sign frame to frame and from agents re-planning every tick; fixes are hysteresis on decisions, smoothing the desired velocity, priorities (a stopped agent yields), and a spatial hash so neighbour queries stay cheap at hundreds of agents.`,
+aru:`Модель steering Рейнольдса: каждое поведение вычисляет <em>желаемую скорость</em>, сила руления — <code>desired - current</code>, ограниченная максимальной силой, а интегрирование с массой и максимальной скоростью даёт движение, которое поворачивает плавно, а не рывком. Seek направляет желаемую скорость на цель на полной скорости; flee её отрицает; arrive уменьшает желаемую скорость внутри радиуса торможения, чтобы агент остановился на цели, а не кружил вокруг; pursue/evade целятся в предсказанную будущую позицию; wander дрожит целью по окружности впереди для естественного бездействия; тройка флокинга — separation (отталкивание от близких соседей с весом 1/расстояние), alignment (подстройка курса под соседей), cohesion (движение к их центру) — даёт стада и рои. Проблема дизайна — комбинирование: взвешенные суммы просты, но гасят друг друга (агент застрял между двумя равными толчками), поэтому продакшен использует приоритетное смешивание — сначала избегание, затем seek, затем флокинг — и прекращает накопление, когда бюджет силы исчерпан. Одного steering недостаточно, чтобы агенты не сталкивались: каждый игнорирует, что сделают другие; это чинит RVO/ORCA: каждый агент вычисляет множество скоростей, ведущих к столкновению с каждым соседом в горизонте времени (velocity obstacles), берёт на себя половину ответственности за уклонение и выбирает скорость, ближайшую к желаемой, вне всех этих множеств — маленькая задача линейного программирования на агента за тик. Именно это выполняет obstacle avoidance у <code>NavMeshAgent</code>, а его уровни качества — число учитываемых соседей. Дёрганье рождается из противоположных сил, меняющих знак от кадра к кадру, и из перепланирования каждым агентом каждый тик; лечение — гистерезис решений, сглаживание желаемой скорости, приоритеты (остановившийся уступает) и пространственный хэш, чтобы запросы соседей оставались дешёвыми на сотнях агентов.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Steering — «куда бы я хотел двигаться» минус «куда двигаюсь сейчас», и чуть-чуть в эту сторону каждый кадр. Толпа — сумма нескольких таких желаний. RVO — шаг дальше: «если я вижу, что через две секунды мы столкнёмся, мы оба берём чуть в сторону».</p>
+<h3>Код</h3>
+<pre>Vector3 Seek(Vector3 target)   =&gt; (target - pos).normalized * maxSpeed - velocity;
+Vector3 Arrive(Vector3 target, float slowRadius)
+{
+    Vector3 to = target - pos; float d = to.magnitude;
+    float speed = d &lt; slowRadius ? maxSpeed * (d / slowRadius) : maxSpeed;
+    return to / Mathf.Max(d, 1e-4f) * speed - velocity;
+}
+Vector3 Separation(List&lt;Agent&gt; neighbours)
+{
+    Vector3 push = Vector3.zero;
+    foreach (var n in neighbours)
+    {
+        Vector3 away = pos - n.pos; float d2 = away.sqrMagnitude;
+        if (d2 &gt; 0f) push += away / d2;               <span class="cm">// вес 1/расстояние (after normalization: away/d * 1/d)</span>
+    }
+    return push.sqrMagnitude &gt; 0f ? push.normalized * maxSpeed - velocity : Vector3.zero;
+}
+
+<span class="cm">// Приоритетное смешивание: бюджет силы тратится сверху вниз</span>
+Vector3 Steer()
+{
+    float budget = maxForce; Vector3 total = Vector3.zero;
+    foreach (var (force, weight) in new[] { (Separation(near), 2f), (Arrive(goal, 3f), 1f) })
+    {
+        Vector3 f = Vector3.ClampMagnitude(force * weight, budget);
+        total += f; budget -= f.magnitude;
+        if (budget &lt;= 0f) break;
+    }
+    return total;
+}
+<span class="cm">// Интегрирование: velocity = ClampMagnitude(velocity + Steer() / mass * dt, maxSpeed)</span></pre>
+<div class="tip">Симптом «агенты вибрируют в дверном проёме» — почти всегда две равные противоположные силы без приоритета и гистерезиса. Дайте одному агенту уступить (по id или по расстоянию до цели) — вибрация исчезает.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«Сила руления — желаемая скорость минус текущая, с лимитом. Arrive гасит скорость в радиусе. Комбинирую по приоритетам с бюджетом силы, не суммой. Для реального избегания — RVO/ORCA: velocity obstacles, половина ответственности каждому; это и есть obstacle avoidance NavMeshAgent. Дёрганье лечу гистерезисом и приоритетами».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://www.red3d.com/cwr/steer/" target="_blank">Craig Reynolds — Steering Behaviors For Autonomous Characters</a> <span>— первоисточник с демо каждого поведения</span></li>
+<li><a href="https://gamma.cs.unc.edu/RVO2/" target="_blank">RVO2 Library</a> <span>— эталонная реализация ORCA и статья по ней</span></li>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/Manual/nav-InnerWorkings.html" target="_blank">Unity — Inner workings of the navigation system</a> <span>— где в NavMeshAgent живёт локальное избегание</span></li>
+</ul></div>`},
+
+{n:373,c:"Math",p:"mid",
+q:`Hashing and identity in games: stable IDs vs GetInstanceID, string hashes (FNV, Animator.StringToHash, Shader.PropertyToID), and how you reason about collisions.`,
+qru:`Хэширование и идентичность в играх: стабильные ID против GetInstanceID, строковые хэши (FNV, Animator.StringToHash, Shader.PropertyToID) и как рассуждать о коллизиях.`,
+a:`Identity comes in three lifetimes and you must not mix them. <code>GetInstanceID</code> is unique for one process run only — it changes on every launch and in every build, so it can never go into a save file or over the network. A stable ID is something you assign and serialize at authoring time (a GUID on the prefab or entity definition, an asset GUID from the <code>.meta</code>) or derive deterministically from content (a hash of the asset path or the definition's name); that is what saves, replays, analytics and netcode reference. Session-local handles (array index + generation counter) are the fast third kind for runtime lookups. String hashes exist because comparing and hashing strings per frame is expensive: <code>Animator.StringToHash</code> and <code>Shader.PropertyToID</code> turn a name into an <code>int</code> once so the hot path compares integers; the same idea applies to your own event names and stat keys — hash at load, pass ints around. Never persist <code>string.GetHashCode()</code>: it is not guaranteed stable across runtimes or versions (and is randomised per process on modern .NET); use an algorithm you control — FNV-1a or xxHash — and pin the implementation. Collisions: with 32 bits the birthday bound gives ~50% chance of a collision somewhere around 77,000 distinct strings, so for content-scale key spaces (asset paths, localisation keys) either move to 64-bit hashes or validate uniqueness at build time and fail the build on a clash — an <code>int</code> key that silently maps two assets to one is a bug that only shows up in QA as "the wrong sword". <code>Hash128</code> is Unity's 128-bit content hash for asset-level identity, where collisions are not a practical concern.`,
+aru:`Идентичность бывает трёх сроков жизни, и смешивать их нельзя. <code>GetInstanceID</code> уникален только в пределах одного запуска процесса — меняется при каждом старте и в каждой сборке, поэтому не может попасть в сейв или в сеть. Стабильный ID — то, что вы назначаете и сериализуете при авторинге (GUID на префабе или определении сущности, GUID ассета из <code>.meta</code>) или детерминированно выводите из содержимого (хэш пути ассета или имени определения); на него ссылаются сейвы, реплеи, аналитика и netcode. Сессионные хэндлы (индекс в массиве + счётчик поколения) — быстрый третий вид для runtime-поиска. Строковые хэши существуют потому, что сравнивать и хэшировать строки каждый кадр дорого: <code>Animator.StringToHash</code> и <code>Shader.PropertyToID</code> превращают имя в <code>int</code> один раз, чтобы горячий путь сравнивал целые; та же идея для ваших имён событий и ключей статов — хэшировать при загрузке, передавать int. Никогда не сохраняйте <code>string.GetHashCode()</code>: он не гарантирован стабильным между рантаймами и версиями (а на современном .NET рандомизируется на процесс); используйте алгоритм, который контролируете — FNV-1a или xxHash — и зафиксируйте реализацию. Коллизии: при 32 битах парадокс дней рождения даёт ~50% шанс коллизии где-то около 77 000 различных строк, поэтому для пространств ключей масштаба контента (пути ассетов, ключи локализации) либо переходите на 64-битные хэши, либо проверяйте уникальность на этапе сборки и роняйте сборку при совпадении — <code>int</code>-ключ, тихо отображающий два ассета в один, — баг, который всплывёт в QA как «не тот меч». <code>Hash128</code> — 128-битный контентный хэш Unity для идентичности на уровне ассетов, где коллизии практически не проблема.`,
+d:`
+<h3>Простыми словами</h3>
+<p>Есть «номер в очереди сегодня» (InstanceID), «номер паспорта» (стабильный ID) и «отпечаток содержимого» (хэш). В сейв и в сеть идёт только паспорт. Хэш строки — способ один раз превратить имя в число, чтобы потом сравнивать числа; но коротких чисел на всех не хватает, и это надо проверять.</p>
+<h3>Код</h3>
+<pre><span class="cm">// Горячий путь сравнивает int, не строки</span>
+static readonly int SpeedParam = Animator.StringToHash("Speed");
+static readonly int TintId     = Shader.PropertyToID("_Tint");
+animator.SetFloat(SpeedParam, speed);
+block.SetColor(TintId, color);
+
+<span class="cm">// Свой стабильный хэш — контролируемый алгоритм, не string.GetHashCode()</span>
+static uint Fnv1a32(string s)
+{
+    unchecked
+    {
+        uint h = 2166136261u;
+        foreach (char c in s) { h ^= c; h *= 16777619u; }
+        return h;
+    }
+}
+
+<span class="cm">// Проверка коллизий на этапе сборки: два ключа — один хэш = красная сборка</span>
+var seen = new Dictionary&lt;uint, string&gt;();
+foreach (var key in allLocalizationKeys)
+{
+    uint h = Fnv1a32(key);
+    if (seen.TryGetValue(h, out var other) &amp;&amp; other != key)
+        throw new BuildFailedException(key + " collides with " + other);
+    seen[h] = key;
+}
+
+<span class="cm">// Стабильный ID сущности: назначен при авторинге, сериализован</span>
+[SerializeField, HideInInspector] string guid;       <span class="cm">// Guid.NewGuid() в OnValidate, если пусто</span></pre>
+<div class="warn">Парадокс дней рождения: при 32-битном хэше 50% шанс коллизии уже на ~77 000 ключей, 1% — на ~9 300. Для пары сотен параметров аниматора это неважно; для всех строк локализации большого проекта — реальность.</div>
+<h3>Что сказать на собеседовании</h3>
+<p>«InstanceID — только на сессию; в сейвы и сеть — стабильный GUID или детерминированный хэш содержимого. Имена хэширую один раз в int, как StringToHash/PropertyToID. GetHashCode не сохраняю — свой FNV/xxHash. Коллизии считаю по парадоксу дней рождения и проверяю уникальность в сборке или беру 64 бита».</p>
+<div class="links"><h3>Где почитать</h3><ul>
+<li><a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Object.GetInstanceID.html" target="_blank">Object.GetInstanceID</a> <span>— прямо в документации: уникален только в пределах сессии</span></li>
+<li><a href="http://www.isthe.com/chongo/tech/comp/fnv/" target="_blank">FNV Hash</a> <span>— спецификация FNV-1a с константами для 32/64 бит</span></li>
+<li><a href="https://learn.microsoft.com/en-us/dotnet/api/system.string.gethashcode#remarks" target="_blank">String.GetHashCode — Remarks</a> <span>— почему хэш строки нельзя сохранять</span></li>
+</ul></div>`},
+
 ];
