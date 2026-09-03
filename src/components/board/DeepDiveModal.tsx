@@ -52,7 +52,7 @@ export function DeepDiveModal({ question, onClose }: DeepDiveModalProps) {
           type="button"
           onClick={onClose}
           aria-label={t.closeModal}
-          className="absolute top-4 right-4 flex size-[34px] items-center justify-center rounded-full border border-black/20 bg-kraft text-ink-body hover:bg-kraft-hover"
+          className="absolute top-4 right-4 flex size-[34px] items-center justify-center rounded-full border border-black/20 bg-kraft text-ink-body shadow-tab transition hover:bg-kraft-hover hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           ✕
         </button>
@@ -67,6 +67,33 @@ export function DeepDiveModal({ question, onClose }: DeepDiveModalProps) {
         </p>
         {/* Trusted static lesson HTML — see src/data/deepDives.ts for the trust rationale. */}
         <div className="legacy-html" dangerouslySetInnerHTML={{ __html: question.d }} />
+
+        {/*
+          A second way out at the foot of the lesson: the ✕ in the corner has
+          scrolled far off the top of a phone screen by the time you finish
+          reading, and the backdrop is barely reachable on a tall card. Drawn
+          as a catalog drawer tab torn off along a perforation rather than
+          another cross — it belongs to the paper, and it says where it takes you.
+        */}
+        <footer className="mt-9 flex flex-col items-center border-t-2 border-dashed border-[rgba(170,50,40,.4)] pt-7">
+          <button
+            type="button"
+            onClick={onClose}
+            className="group inline-flex items-center gap-2.5 rounded-t-[3px] rounded-b-lg border border-black/20 bg-kraft px-6 py-2.5 shadow-tab transition hover:-translate-y-0.5 hover:bg-kraft-hover hover:shadow-tab-active focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:translate-y-px active:shadow-none"
+          >
+            <span
+              aria-hidden
+              className="text-[15px] leading-none text-accent transition-transform group-hover:-translate-x-0.5"
+            >
+              ↩
+            </span>
+            <span className="font-display text-[12px] font-semibold tracking-[.14em] text-[#2b2115] uppercase">
+              {t.closeLesson}
+            </span>
+          </button>
+          {/* Esc only exists on a keyboard, so the hint stays off phone screens. */}
+          <p className="mt-3 hidden font-hand text-[16px] text-hand md:block">{t.closeHint}</p>
+        </footer>
       </div>
     </div>
   );
