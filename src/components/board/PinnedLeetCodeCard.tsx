@@ -53,6 +53,7 @@ export function PinnedLeetCodeCard({
       onTogglePin={onToggleDone}
       pinLabel={t.pinAria(done, "solved")}
       meta={item.k}
+      onCollapse={isOpen ? onToggleOpen : undefined}
       title={
         <a
           href={url}

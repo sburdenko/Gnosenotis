@@ -49,6 +49,7 @@ export function PinnedQuestionCard({
       onTogglePin={onToggleReviewed}
       pinLabel={t.pinAria(reviewed, "reviewed")}
       onHeaderClick={handleHeaderClick}
+      onCollapse={isOpen ? onToggleOpen : undefined}
       meta={
         <span className="flex items-center gap-1.5">
           {question.c}

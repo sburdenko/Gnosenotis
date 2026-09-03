@@ -39,6 +39,7 @@ export function PinnedPatternCard({
       onTogglePin={onToggleLearned}
       pinLabel={t.pinAria(learned, "learned")}
       onHeaderClick={onToggleOpen}
+      onCollapse={isOpen ? onToggleOpen : undefined}
       meta={t.patterns.problemCount(usage.length)}
       title={pick(pattern.n, pattern.nru)}
       overlay={
