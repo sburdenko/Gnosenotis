@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/i18n/LanguageContext";
 import { PIN_GRADIENT, tiltForIndex, type PinColor } from "@/lib/boardVisuals";
 
 interface PinnedCardShellProps {
@@ -20,6 +21,12 @@ interface PinnedCardShellProps {
    * pinning things to a board is that they don't shuffle around.
    */
   overlay?: React.ReactNode;
+  /**
+   * Folds the overlay back up. When given, the overlay grows a tab at its
+   * foot — the unfolded panel runs well past the header on a phone, and the
+   * header is the only other way to close it.
+   */
+  onCollapse?: () => void;
 }
 
 /**
@@ -45,7 +52,9 @@ export function PinnedCardShell({
   onHeaderClick,
   children,
   overlay,
+  onCollapse,
 }: PinnedCardShellProps) {
+  const { t } = useLanguage();
   const tilt = tiltForIndex(index);
 
   return (
@@ -93,6 +102,33 @@ export function PinnedCardShell({
       {overlay && (
         <div className="tex-paper-ruled absolute top-full -right-px -left-px border border-t-0 border-black/10 px-5 pb-5 shadow-card-hover">
           {overlay}
+          {onCollapse && (
+            /*
+              Same catalog-drawer tab as the foot of a deep dive, one size
+              down: a long overlay leaves the header — the card's other way
+              closed — far off the top of a phone screen.
+            */
+            <div className="mt-5 flex flex-col items-center border-t border-dashed border-[rgba(170,50,40,.35)] pt-4">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCollapse();
+                }}
+                className="group inline-flex items-center gap-2 rounded-t-[3px] rounded-b-lg border border-black/20 bg-kraft px-4 py-1.5 shadow-tab transition hover:-translate-y-0.5 hover:bg-kraft-hover hover:shadow-tab-active focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:translate-y-px active:shadow-none"
+              >
+                <span
+                  aria-hidden="true"
+                  className="text-[12px] leading-none text-accent transition-transform group-hover:-translate-y-0.5"
+                >
+                  ▴
+                </span>
+                <span className="font-display text-[10.5px] font-semibold tracking-[.14em] text-[#2b2115] uppercase">
+                  {t.collapseCard}
+                </span>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </article>

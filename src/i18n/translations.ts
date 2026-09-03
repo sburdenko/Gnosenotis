@@ -71,6 +71,8 @@ export interface Dictionary {
   closeModal: string;
   /** Label on the tab-shaped close control at the foot of a deep dive. */
   closeLesson: string;
+  /** Its smaller sibling at the foot of an unfolded card. */
+  collapseCard: string;
   /** Hand-written hint under it; desktop-only, since phones have no Esc key. */
   closeHint: string;
   leetFilters: {
@@ -173,6 +175,7 @@ export const dictionaries: Record<Lang, Dictionary> = {
     deepDiveRuOnly: "This lesson is written in Russian only.",
     closeModal: "Close",
     closeLesson: "Back to the board",
+    collapseCard: "Fold the card back",
     closeHint: "…or just hit Esc",
     leetFilters: {
       all: "All",
@@ -268,6 +271,7 @@ export const dictionaries: Record<Lang, Dictionary> = {
     deepDiveRuOnly: "Материал есть только на русском.",
     closeModal: "Закрыть",
     closeLesson: "Вернуться на доску",
+    collapseCard: "Свернуть карточку",
     closeHint: "…или просто нажми Esc",
     leetFilters: {
       all: "Все",
