@@ -68,7 +68,7 @@ export function PatternsBoard({ patternGroups, leetcodeGroups }: PatternsBoardPr
         progressLabel={t.progress(learnedCount, total, "learned")}
       />
 
-      <div className="flex flex-col gap-[26px] px-[30px] pt-7 md:flex-row">
+      <div className="flex flex-col gap-[26px] px-4 pt-7 md:px-[30px] md:flex-row">
         <SectionSidebar
           sections={sections}
           activeId={activeGroup}
@@ -91,7 +91,7 @@ export function PatternsBoard({ patternGroups, leetcodeGroups }: PatternsBoardPr
                 <h2 className="font-serif text-[17px] tracking-tight text-cream">
                   {pick(group.g, group.gru)}
                 </h2>
-                <div className="mt-3 grid gap-[22px] md:grid-cols-2">
+                <div className="mt-3 grid grid-cols-1 gap-[22px] md:grid-cols-2">
                   {group.items.map((pattern, i) => (
                     <PinnedPatternCard
                       key={pattern.id}

@@ -13,7 +13,7 @@ interface ToolbarProps {
  */
 export function Toolbar({ query, onQueryChange, searchPlaceholder, cardCountLabel, progressLabel }: ToolbarProps) {
   return (
-    <div className="mx-[30px] mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+    <div className="mx-4 mt-6 flex md:mx-[30px] flex-col gap-3 sm:flex-row sm:items-center">
       <div className="focus-within:shadow-[inset_0_2px_5px_rgba(90,70,30,.25),0_0_0_2px_rgba(155,47,34,.35)] flex flex-1 -rotate-[.4deg] items-center justify-between border border-black/20 bg-[#fbf5e4] px-4 py-[11px] shadow-paper-inset">
         <input
           type="search"

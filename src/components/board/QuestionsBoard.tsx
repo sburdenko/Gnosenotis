@@ -56,7 +56,7 @@ export function QuestionsBoard({ questions }: { questions: Question[] }) {
         progressLabel={t.progress(reviewedCount, questions.length, "reviewed")}
       />
 
-      <div className="flex flex-col gap-[26px] px-[30px] pt-7 md:flex-row">
+      <div className="flex flex-col gap-[26px] px-4 pt-7 md:px-[30px] md:flex-row">
         <SectionSidebar
           sections={sections}
           activeId={activeCategory}
@@ -78,7 +78,7 @@ export function QuestionsBoard({ questions }: { questions: Question[] }) {
           </div>
 
           {filtered.length > 0 ? (
-            <div className="grid gap-[22px] md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-[22px] md:grid-cols-2">
               {filtered.map((q, i) => (
                 <PinnedQuestionCard
                   key={q.n}

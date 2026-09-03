@@ -90,7 +90,7 @@ export function LeetCodeBoard({ leetcodeGroups, patternsById }: LeetCodeBoardPro
         progressLabel={t.progress(count, total, "solved")}
       />
 
-      <div className="flex flex-col gap-[26px] px-[30px] pt-7 md:flex-row">
+      <div className="flex flex-col gap-[26px] px-4 pt-7 md:px-[30px] md:flex-row">
         <SectionSidebar
           sections={sections}
           activeId={filter}
@@ -113,7 +113,7 @@ export function LeetCodeBoard({ leetcodeGroups, patternsById }: LeetCodeBoardPro
                 <h2 className="font-serif text-[17px] tracking-tight text-cream">
                   {pick(group.g, group.gru)}
                 </h2>
-                <div className="mt-3 grid gap-[22px] md:grid-cols-2">
+                <div className="mt-3 grid grid-cols-1 gap-[22px] md:grid-cols-2">
                   {group.items.map((item, i) => (
                     <PinnedLeetCodeCard
                       key={item.s}

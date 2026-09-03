@@ -56,7 +56,7 @@ export function ResourcesBoard({ resourceGroups }: { resourceGroups: ResourceGro
         progressLabel={t.progress(count, total, "read")}
       />
 
-      <div className="flex flex-col gap-[26px] px-[30px] pt-7 md:flex-row">
+      <div className="flex flex-col gap-[26px] px-4 pt-7 md:px-[30px] md:flex-row">
         <SectionSidebar
           sections={sections}
           activeId={activeGroup}
@@ -79,7 +79,7 @@ export function ResourcesBoard({ resourceGroups }: { resourceGroups: ResourceGro
               return (
                 <div key={group.g} className="mb-7">
                   <h2 className="font-serif text-[17px] tracking-tight text-cream">{pick(group.g, group.gru)}</h2>
-                  <div className="mt-3 grid gap-[22px] md:grid-cols-2">
+                  <div className="mt-3 grid grid-cols-1 gap-[22px] md:grid-cols-2">
                     {group.items.map((item, i) => (
                       <PinnedResourceCard
                         key={item.u}

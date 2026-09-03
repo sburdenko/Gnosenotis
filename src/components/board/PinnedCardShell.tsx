@@ -76,7 +76,15 @@ export function PinnedCardShell({
         className={`mb-[11px] flex items-baseline justify-between gap-3 border-b-2 border-[rgba(170,50,40,.45)] pb-1.5 ${onHeaderClick ? "cursor-pointer" : ""}`}
         onClick={onHeaderClick}
       >
-        <h3 className="font-serif text-[19px] leading-tight font-bold text-ink">{title}</h3>
+        {/*
+          `overflow-wrap: anywhere` rather than `break-words`: only `anywhere`
+          also shrinks the element's min-content width, which is what lets a
+          title like "ISerializationCallbackReceiver" — one word wider than a
+          phone screen — stop dragging the whole page into a sideways scroll.
+        */}
+        <h3 className="min-w-0 font-serif text-[19px] leading-tight font-bold text-ink [overflow-wrap:anywhere]">
+          {title}
+        </h3>
         <span className="shrink-0 font-mono text-[11px] text-ink-muted">{meta}</span>
       </header>
 

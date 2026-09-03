@@ -8,7 +8,7 @@ export function BrandHeader() {
   const { t } = useLanguage();
 
   return (
-    <header className="tex-wood flex items-center justify-between gap-4 border-b-[3px] border-[rgba(50,28,8,.5)] px-[30px] py-5 shadow-header">
+    <header className="tex-wood flex items-center justify-between gap-4 border-b-[3px] border-[rgba(50,28,8,.5)] px-4 py-5 shadow-header md:px-[30px]">
       <div>
         <p className="font-display text-[11px] font-semibold tracking-[.26em] text-gold uppercase">
           {t.siteEyebrow}
