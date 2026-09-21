@@ -15,14 +15,16 @@ export const questionsWithDeepDives: Question[] = rawQuestions.map((question) =>
 });
 
 export { resourceGroups } from "./resources";
-export { leetcodeGroups } from "./leetcode";
+export { leetcodeProblems, leetcodeTopicGroups } from "./leetcode";
 export { patternGroups, patternsById } from "./patterns";
 export { bugHuntGroups, bugHuntItems } from "./bughunt";
 export type {
   Question,
   ResourceGroup,
   ResourceItem,
-  LeetCodeGroup,
+  LeetCodeProblem,
+  LeetCodeTopicGroup,
+  LeetTopicId,
   LeetCodeItem,
   LeetCodeDifficulty,
   AlgoPattern,

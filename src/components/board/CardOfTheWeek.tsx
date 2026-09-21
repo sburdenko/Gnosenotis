@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import type { LeetCodeGroup } from "@/types/content";
+import type { LeetCodeProblem } from "@/types/content";
 import { useLanguage } from "@/i18n/LanguageContext";
 
 function isoWeekNumber(date: Date): number {
@@ -42,13 +42,13 @@ function subscribeNoop() {
  * mismatch). `getServerWeek` reports "unknown" so the initial render is
  * empty on both server and client, then the real week reconciles right after hydration.
  */
-export function CardOfTheWeek({ leetcodeGroups }: { leetcodeGroups: LeetCodeGroup[] }) {
+export function CardOfTheWeek({ problems }: { problems: LeetCodeProblem[] }) {
   const { t } = useLanguage();
   const week = useSyncExternalStore(subscribeNoop, getCurrentWeek, getServerWeek);
 
   if (week === UNKNOWN_WEEK) return null;
 
-  const coreItems = leetcodeGroups.flatMap((g) => g.items).filter((i) => i.core);
+  const coreItems = problems.filter((problem) => problem.core);
   if (coreItems.length === 0) return null;
   const picked = coreItems[week % coreItems.length];
 

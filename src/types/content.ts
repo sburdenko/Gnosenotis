@@ -93,15 +93,48 @@ export interface LeetCodeItem {
   sol: SolutionApproach[];
 }
 
-/** A difficulty-grouped bucket of LeetCode problems. */
-export interface LeetCodeGroup {
+/**
+ * A problem with its difficulty attached.
+ *
+ * Difficulty is not authored on the item: it is encoded by which file the
+ * problem lives in (`easy.ts` / `medium.ts` / `hard.ts`) and stamped on at
+ * load time in `src/data/leetcode/index.ts`. That one source of truth is
+ * what lets the board group by topic without difficulty becoming a field
+ * two places can disagree about.
+ */
+export interface LeetCodeProblem extends LeetCodeItem {
+  d: LeetCodeDifficulty;
+}
+
+/**
+ * Topics the LeetCode board groups by — a coarser layer over `PatternId`,
+ * because thirty-one patterns is a filing system, not a study plan. The
+ * order here is the order the groups appear in.
+ */
+export const LEET_TOPIC_IDS = [
+  "scan",
+  "hashing",
+  "bits",
+  "linear",
+  "search",
+  "ordering",
+  "trees",
+  "graphs",
+  "dp",
+  "backtracking",
+  "design",
+] as const;
+
+export type LeetTopicId = (typeof LEET_TOPIC_IDS)[number];
+
+/** A topic-grouped bucket of LeetCode problems, ordered easy → hard inside. */
+export interface LeetCodeTopicGroup {
+  id: LeetTopicId;
   /** Group heading, English. */
   g: string;
   /** Group heading, Russian translation. */
   gru: string;
-  /** Difficulty bucket this group belongs to. */
-  d: LeetCodeDifficulty;
-  items: LeetCodeItem[];
+  items: LeetCodeProblem[];
 }
 
 /**

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useEscapeToClose } from "@/hooks/useEscapeToClose";
-import type { AlgoPattern, LeetCodeGroup, PatternGroup, PatternId } from "@/types/content";
+import type { AlgoPattern, LeetCodeProblem, PatternGroup, PatternId } from "@/types/content";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useProgressSet } from "@/hooks/useProgressSet";
 import { buildPatternUsage } from "@/lib/patternUsage";
@@ -18,10 +18,10 @@ const PROGRESS_KEY = "unity-patterns-progress";
 interface PatternsBoardProps {
   patternGroups: PatternGroup[];
   /** Used to derive which problems practise each pattern. */
-  leetcodeGroups: LeetCodeGroup[];
+  leetcodeProblems: LeetCodeProblem[];
 }
 
-export function PatternsBoard({ patternGroups, leetcodeGroups }: PatternsBoardProps) {
+export function PatternsBoard({ patternGroups, leetcodeProblems }: PatternsBoardProps) {
   const { t, pick } = useLanguage();
   const [term, setTerm] = useState("");
   const [activeGroup, setActiveGroup] = useState("all");
@@ -29,7 +29,7 @@ export function PatternsBoard({ patternGroups, leetcodeGroups }: PatternsBoardPr
   useEscapeToClose(openId !== null, () => setOpenId(null));
   const { done: learned, toggle: toggleLearned, count: learnedCount } = useProgressSet(PROGRESS_KEY);
 
-  const usage = useMemo(() => buildPatternUsage(leetcodeGroups), [leetcodeGroups]);
+  const usage = useMemo(() => buildPatternUsage(leetcodeProblems), [leetcodeProblems]);
   const total = useMemo(() => patternGroups.reduce((sum, g) => sum + g.items.length, 0), [patternGroups]);
 
   const sections = useMemo(

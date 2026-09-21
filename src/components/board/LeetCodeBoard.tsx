@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useEscapeToClose } from "@/hooks/useEscapeToClose";
-import type { AlgoPattern, LeetCodeGroup, PatternId } from "@/types/content";
+import type { AlgoPattern, LeetCodeProblem, LeetCodeTopicGroup, PatternId } from "@/types/content";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useProgressSet } from "@/hooks/useProgressSet";
 import { Toolbar } from "./Toolbar";
@@ -17,11 +17,21 @@ const PROGRESS_KEY = "unity-leetcode-progress";
 type FilterKey = "all" | "easy" | "med" | "hard" | "core";
 
 interface LeetCodeBoardProps {
-  leetcodeGroups: LeetCodeGroup[];
+  /** Problems grouped by topic — the headings on the board. */
+  topicGroups: LeetCodeTopicGroup[];
+  /** The same problems flat, for the counts and the card of the week. */
+  problems: LeetCodeProblem[];
   patternsById: Record<PatternId, AlgoPattern>;
 }
 
-export function LeetCodeBoard({ leetcodeGroups, patternsById }: LeetCodeBoardProps) {
+/**
+ * Problems are grouped by *topic* and filtered by *difficulty*: the sidebar
+ * picks a difficulty (or the core set), the headings stay topical, and each
+ * card carries its own difficulty badge. Grouping by difficulty instead
+ * would answer "what is hard?", which is not the question anyone preparing
+ * actually asks.
+ */
+export function LeetCodeBoard({ topicGroups, problems, patternsById }: LeetCodeBoardProps) {
   const { t, pick } = useLanguage();
   const [term, setTerm] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
@@ -31,40 +41,33 @@ export function LeetCodeBoard({ leetcodeGroups, patternsById }: LeetCodeBoardPro
   useEscapeToClose(openSlug !== null, () => setOpenSlug(null));
   const { done, toggle, count } = useProgressSet(PROGRESS_KEY);
 
-  const total = useMemo(() => leetcodeGroups.reduce((sum, g) => sum + g.items.length, 0), [leetcodeGroups]);
-  const coreCount = useMemo(
-    () => leetcodeGroups.reduce((sum, g) => sum + g.items.filter((i) => i.core).length, 0),
-    [leetcodeGroups],
+  const total = problems.length;
+  const counts = useMemo(
+    () => ({
+      easy: problems.filter((p) => p.d === "easy").length,
+      med: problems.filter((p) => p.d === "med").length,
+      hard: problems.filter((p) => p.d === "hard").length,
+      core: problems.filter((p) => p.core).length,
+    }),
+    [problems],
   );
 
   const sections = [
     { id: "all" as FilterKey, label: t.leetFilters.all, count: total },
-    {
-      id: "easy" as FilterKey,
-      label: t.leetFilters.easy,
-      count: leetcodeGroups[0]?.items.length ?? 0,
-    },
-    {
-      id: "med" as FilterKey,
-      label: t.leetFilters.medium,
-      count: leetcodeGroups[1]?.items.length ?? 0,
-    },
-    {
-      id: "hard" as FilterKey,
-      label: t.leetFilters.hard,
-      count: leetcodeGroups[2]?.items.length ?? 0,
-    },
-    { id: "core" as FilterKey, label: t.leetFilters.core, count: coreCount },
+    { id: "easy" as FilterKey, label: t.leetFilters.easy, count: counts.easy },
+    { id: "med" as FilterKey, label: t.leetFilters.medium, count: counts.med },
+    { id: "hard" as FilterKey, label: t.leetFilters.hard, count: counts.hard },
+    { id: "core" as FilterKey, label: t.leetFilters.core, count: counts.core },
   ];
 
   const needle = term.trim().toLowerCase();
   const visibleGroups = useMemo(() => {
-    return leetcodeGroups
-      .filter((g) => filter === "all" || filter === "core" || g.d === filter)
+    return topicGroups
       .map((g) => ({
         ...g,
         items: g.items.filter((item) => {
           if (filter === "core" && !item.core) return false;
+          if (filter !== "all" && filter !== "core" && item.d !== filter) return false;
           if (!needle) return true;
           // Approach names and pattern ids are searchable too, so "dijkstra"
           // or "sliding window" finds every problem that drills them.
@@ -75,7 +78,7 @@ export function LeetCodeBoard({ leetcodeGroups, patternsById }: LeetCodeBoardPro
         }),
       }))
       .filter((g) => g.items.length > 0);
-  }, [leetcodeGroups, filter, needle]);
+  }, [topicGroups, filter, needle]);
 
   const visibleCount = visibleGroups.reduce((sum, g) => sum + g.items.length, 0);
   const remaining = total - count;
@@ -109,7 +112,7 @@ export function LeetCodeBoard({ leetcodeGroups, patternsById }: LeetCodeBoardPro
 
           {visibleGroups.length > 0 ? (
             visibleGroups.map((group) => (
-              <div key={group.g} className="mb-7">
+              <div key={group.id} className="mb-7">
                 <h2 className="font-serif text-[17px] tracking-tight text-cream">
                   {pick(group.g, group.gru)}
                 </h2>
@@ -119,7 +122,7 @@ export function LeetCodeBoard({ leetcodeGroups, patternsById }: LeetCodeBoardPro
                       key={item.s}
                       item={item}
                       index={i}
-                      difficulty={group.d}
+                      difficulty={item.d}
                       done={Boolean(done[item.s])}
                       isOpen={openSlug === item.s}
                       patternsById={patternsById}
@@ -134,7 +137,7 @@ export function LeetCodeBoard({ leetcodeGroups, patternsById }: LeetCodeBoardPro
             <EmptyState>{t.emptyState}</EmptyState>
           )}
 
-          <CardOfTheWeek leetcodeGroups={leetcodeGroups} />
+          <CardOfTheWeek problems={problems} />
         </div>
       </div>
     </div>

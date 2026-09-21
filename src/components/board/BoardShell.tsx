@@ -6,7 +6,8 @@ import type {
   BugHuntGroup,
   Question,
   ResourceGroup,
-  LeetCodeGroup,
+  LeetCodeProblem,
+  LeetCodeTopicGroup,
   PatternGroup,
   PatternId,
 } from "@/types/content";
@@ -24,7 +25,8 @@ type Tab = "questions" | "resources" | "leetcode" | "patterns" | "bugs";
 interface BoardShellProps {
   questions: Question[];
   resourceGroups: ResourceGroup[];
-  leetcodeGroups: LeetCodeGroup[];
+  leetcodeProblems: LeetCodeProblem[];
+  leetcodeTopicGroups: LeetCodeTopicGroup[];
   patternGroups: PatternGroup[];
   patternsById: Record<PatternId, AlgoPattern>;
   bugHuntGroups: BugHuntGroup[];
@@ -52,7 +54,8 @@ interface BoardShellProps {
 export function BoardShell({
   questions,
   resourceGroups,
-  leetcodeGroups,
+  leetcodeProblems,
+  leetcodeTopicGroups,
   patternGroups,
   patternsById,
   bugHuntGroups,
@@ -96,10 +99,14 @@ export function BoardShell({
         <ResourcesBoard resourceGroups={resourceGroups} />
       </div>
       <div className={tab === "patterns" ? "" : "hidden"}>
-        <PatternsBoard patternGroups={patternGroups} leetcodeGroups={leetcodeGroups} />
+        <PatternsBoard patternGroups={patternGroups} leetcodeProblems={leetcodeProblems} />
       </div>
       <div className={tab === "leetcode" ? "" : "hidden"}>
-        <LeetCodeBoard leetcodeGroups={leetcodeGroups} patternsById={patternsById} />
+        <LeetCodeBoard
+          topicGroups={leetcodeTopicGroups}
+          problems={leetcodeProblems}
+          patternsById={patternsById}
+        />
       </div>
       <div className={tab === "bugs" ? "" : "hidden"}>
         <BugHuntBoard bugHuntGroups={bugHuntGroups} />

@@ -1,7 +1,8 @@
 import {
   questionsWithDeepDives,
   resourceGroups,
-  leetcodeGroups,
+  leetcodeProblems,
+  leetcodeTopicGroups,
   patternGroups,
   patternsById,
   bugHuntGroups,
@@ -21,7 +22,8 @@ export default function Home() {
       <BoardShell
         questions={questionsWithDeepDives}
         resourceGroups={resourceGroups}
-        leetcodeGroups={leetcodeGroups}
+        leetcodeProblems={leetcodeProblems}
+        leetcodeTopicGroups={leetcodeTopicGroups}
         patternGroups={patternGroups}
         patternsById={patternsById}
         bugHuntGroups={bugHuntGroups}

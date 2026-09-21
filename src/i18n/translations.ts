@@ -168,7 +168,7 @@ export const dictionaries: Record<Lang, Dictionary> = {
     tabSub: {
       questions: (n) => `${n} question${pluralizeEn(n, "", "s")}`,
       resources: "where to read",
-      leetcode: "by difficulty",
+      leetcode: "by topic",
       patterns: "the toolbox",
       bugs: "one bug in each",
     },
@@ -288,7 +288,7 @@ export const dictionaries: Record<Lang, Dictionary> = {
     tabSub: {
       questions: (n) => `${n} ${pluralizeRu(n, "вопрос", "вопроса", "вопросов")}`,
       resources: "где читать",
-      leetcode: "задачи по сложности",
+      leetcode: "задачи по темам",
       patterns: "рабочий инструментарий",
       bugs: "в каждом одна ошибка",
     },
