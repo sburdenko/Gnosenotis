@@ -1,3 +1,5 @@
+import type { BugCategoryId } from "@/types/content";
+
 export type Lang = "en" | "ru";
 
 /**
@@ -20,10 +22,10 @@ export function pluralizeEn(n: number, one: string, many: string): string {
 }
 
 /** What a board counts as "done" — drives both the progress line and the pin's label. */
-export type ProgressKind = "reviewed" | "read" | "solved" | "learned";
+export type ProgressKind = "reviewed" | "read" | "solved" | "learned" | "found";
 
 /** Which board the sticky note under the sidebar belongs to. */
-export type ShelfKind = "questions" | "resources" | "leetcode" | "patterns";
+export type ShelfKind = "questions" | "resources" | "leetcode" | "patterns" | "bugs";
 
 export interface Dictionary {
   siteEyebrow: string;
@@ -36,18 +38,21 @@ export interface Dictionary {
     resources: string;
     leetcode: string;
     patterns: string;
+    bugs: string;
   };
   tabSub: {
     questions: (n: number) => string;
     resources: string;
     leetcode: string;
     patterns: string;
+    bugs: string;
   };
   searchPlaceholder: {
     questions: string;
     resources: string;
     leetcode: string;
     patterns: string;
+    bugs: string;
   };
   cardCount: (n: number) => string;
   sectionsHeading: string;
@@ -102,6 +107,22 @@ export interface Dictionary {
     /** Header meta on a pattern card: how many problems drill it. */
     problemCount: (n: number) => string;
   };
+  /** Labels on a bug-hunt card — the one board that grades what you click. */
+  bugHunt: {
+    prompt: string;
+    solved: string;
+    revealed: string;
+    wrong: string;
+    showAnswer: string;
+    tryAgain: string;
+    whatsWrong: string;
+    howToFix: string;
+    misses: (n: number) => string;
+    lineAria: (n: number) => string;
+    allFilter: string;
+    /** Short tag shown in a card's header, next to the title. */
+    category: Record<BugCategoryId, string>;
+  };
   shelfNote: (remaining: number, kind: ShelfKind) => string;
   weekTask: {
     eyebrow: string;
@@ -120,6 +141,7 @@ const EN_PROGRESS_VERB: Record<ProgressKind, string> = {
   read: "read",
   solved: "solved",
   learned: "learned",
+  found: "found",
 };
 
 const RU_PROGRESS: Record<ProgressKind, { verb: string; mark: string }> = {
@@ -127,6 +149,7 @@ const RU_PROGRESS: Record<ProgressKind, { verb: string; mark: string }> = {
   read: { verb: "прочитано", mark: "прочитанное" },
   solved: { verb: "решено", mark: "решённое" },
   learned: { verb: "изучено", mark: "изученное" },
+  found: { verb: "найдено", mark: "найденное" },
 };
 
 export const dictionaries: Record<Lang, Dictionary> = {
@@ -140,18 +163,21 @@ export const dictionaries: Record<Lang, Dictionary> = {
       resources: "Reading list",
       leetcode: "LeetCode",
       patterns: "Patterns",
+      bugs: "Bug hunt",
     },
     tabSub: {
       questions: (n) => `${n} question${pluralizeEn(n, "", "s")}`,
       resources: "where to read",
       leetcode: "by difficulty",
       patterns: "the toolbox",
+      bugs: "one bug in each",
     },
     searchPlaceholder: {
       questions: "search: boxing, GC, coroutines…",
       resources: "search the reading list…",
       leetcode: "search LeetCode problems…",
       patterns: "search: window, Dijkstra, knapsack…",
+      bugs: "search: deadlock, GC, Rigidbody…",
     },
     cardCount: (n) => `${n} card${pluralizeEn(n, "", "s")}`,
     sectionsHeading: "Sections",
@@ -201,10 +227,31 @@ export const dictionaries: Record<Lang, Dictionary> = {
       practiseOn: (n) => `Practise on (${n})`,
       problemCount: (n) => `${n} problem${pluralizeEn(n, "", "s")}`,
     },
+    bugHunt: {
+      prompt: "Click the line you think is wrong",
+      solved: "Found it.",
+      revealed: "Answer shown.",
+      wrong: "Not that line — keep looking.",
+      showAnswer: "Show me",
+      tryAgain: "Try again",
+      whatsWrong: "What's wrong",
+      howToFix: "The fix",
+      misses: (n) => `${n} wrong pick${pluralizeEn(n, "", "s")}`,
+      lineAria: (n) => `Line ${n}`,
+      allFilter: "All",
+      category: {
+        csharp: "C#",
+        unity: "Unity",
+        async: "async",
+        physics: "physics",
+        perf: "perf",
+      },
+    },
     shelfNote: (remaining, kind) => {
       if (remaining <= 0) {
         if (kind === "leetcode") return "All solved. Time for harder ones.";
         if (kind === "patterns") return "Whole toolbox covered. Now use it.";
+        if (kind === "bugs") return "Every bug found. Sharp eye.";
         return "All caught up. Nicely done.";
       }
       const noun =
@@ -214,7 +261,9 @@ export const dictionaries: Record<Lang, Dictionary> = {
             ? "articles"
             : kind === "patterns"
               ? "patterns"
-              : "problems";
+              : kind === "bugs"
+                ? "snippets"
+                : "problems";
       return `${remaining} ${noun} left on the shelf.`;
     },
     weekTask: {
@@ -234,18 +283,21 @@ export const dictionaries: Record<Lang, Dictionary> = {
       resources: "Что читать",
       leetcode: "LeetCode",
       patterns: "Паттерны",
+      bugs: "Найди баг",
     },
     tabSub: {
       questions: (n) => `${n} ${pluralizeRu(n, "вопрос", "вопроса", "вопросов")}`,
       resources: "где читать",
       leetcode: "задачи по сложности",
       patterns: "рабочий инструментарий",
+      bugs: "в каждом одна ошибка",
     },
     searchPlaceholder: {
       questions: "искать: боксинг, GC, корутины…",
       resources: "искать по списку чтения…",
       leetcode: "искать задачи LeetCode…",
       patterns: "искать: окно, Дейкстра, рюкзак…",
+      bugs: "искать: дедлок, GC, Rigidbody…",
     },
     cardCount: (n) => `${n} ${pluralizeRu(n, "карточка", "карточки", "карточек")}`,
     sectionsHeading: "Разделы",
@@ -297,10 +349,31 @@ export const dictionaries: Record<Lang, Dictionary> = {
       practiseOn: (n) => `Отработать на задачах (${n})`,
       problemCount: (n) => `${n} ${pluralizeRu(n, "задача", "задачи", "задач")}`,
     },
+    bugHunt: {
+      prompt: "Нажмите на строку, в которой ошибка",
+      solved: "Нашли.",
+      revealed: "Ответ показан.",
+      wrong: "Не эта строка — ищите дальше.",
+      showAnswer: "Показать",
+      tryAgain: "Ещё раз",
+      whatsWrong: "Что не так",
+      howToFix: "Как исправить",
+      misses: (n) => `${n} ${pluralizeRu(n, "промах", "промаха", "промахов")}`,
+      lineAria: (n) => `Строка ${n}`,
+      allFilter: "Все",
+      category: {
+        csharp: "C#",
+        unity: "Unity",
+        async: "async",
+        physics: "физика",
+        perf: "перф",
+      },
+    },
     shelfNote: (remaining, kind) => {
       if (remaining <= 0) {
         if (kind === "leetcode") return "Всё решено. Пора за сложные.";
         if (kind === "patterns") return "Инструментарий закрыт. Теперь применять.";
+        if (kind === "bugs") return "Все баги найдены. Глаз-алмаз.";
         return "Всё повторено. Красота.";
       }
       const noun =
@@ -310,7 +383,9 @@ export const dictionaries: Record<Lang, Dictionary> = {
             ? pluralizeRu(remaining, "статья", "статьи", "статей")
             : kind === "patterns"
               ? pluralizeRu(remaining, "паттерн", "паттерна", "паттернов")
-              : pluralizeRu(remaining, "задача", "задачи", "задач");
+              : kind === "bugs"
+                ? pluralizeRu(remaining, "фрагмент", "фрагмента", "фрагментов")
+                : pluralizeRu(remaining, "задача", "задачи", "задач");
       return `${remaining} ${noun} на полке.`;
     },
     weekTask: {

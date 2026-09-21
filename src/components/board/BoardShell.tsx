@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type {
   AlgoPattern,
+  BugHuntGroup,
   Question,
   ResourceGroup,
   LeetCodeGroup,
@@ -16,8 +17,9 @@ import { QuestionsBoard } from "./QuestionsBoard";
 import { ResourcesBoard } from "./ResourcesBoard";
 import { LeetCodeBoard } from "./LeetCodeBoard";
 import { PatternsBoard } from "./PatternsBoard";
+import { BugHuntBoard } from "./BugHuntBoard";
 
-type Tab = "questions" | "resources" | "leetcode" | "patterns";
+type Tab = "questions" | "resources" | "leetcode" | "patterns" | "bugs";
 
 interface BoardShellProps {
   questions: Question[];
@@ -25,6 +27,7 @@ interface BoardShellProps {
   leetcodeGroups: LeetCodeGroup[];
   patternGroups: PatternGroup[];
   patternsById: Record<PatternId, AlgoPattern>;
+  bugHuntGroups: BugHuntGroup[];
 }
 
 /**
@@ -41,7 +44,7 @@ interface BoardShellProps {
  * keeps the amount of JavaScript sent to the browser as small as the
  * interactivity actually requires.
  *
- * All four tab boards stay mounted at once (toggled with Tailwind's
+ * All five tab boards stay mounted at once (toggled with Tailwind's
  * `hidden` utility) instead of only rendering the active one, so each tab's
  * own state — search text, expanded cards, filters, scroll position within
  * it — survives switching away and back.
@@ -52,6 +55,7 @@ export function BoardShell({
   leetcodeGroups,
   patternGroups,
   patternsById,
+  bugHuntGroups,
 }: BoardShellProps) {
   const { t } = useLanguage();
   const [tab, setTab] = useState<Tab>("questions");
@@ -65,6 +69,7 @@ export function BoardShell({
     { key: "resources", label: t.tabs.resources, sub: t.tabSub.resources },
     { key: "patterns", label: t.tabs.patterns, sub: t.tabSub.patterns },
     { key: "leetcode", label: t.tabs.leetcode, sub: t.tabSub.leetcode },
+    { key: "bugs", label: t.tabs.bugs, sub: t.tabSub.bugs },
   ];
 
   return (
@@ -95,6 +100,9 @@ export function BoardShell({
       </div>
       <div className={tab === "leetcode" ? "" : "hidden"}>
         <LeetCodeBoard leetcodeGroups={leetcodeGroups} patternsById={patternsById} />
+      </div>
+      <div className={tab === "bugs" ? "" : "hidden"}>
+        <BugHuntBoard bugHuntGroups={bugHuntGroups} />
       </div>
     </div>
   );

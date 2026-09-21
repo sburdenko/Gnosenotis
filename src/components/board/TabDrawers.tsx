@@ -13,11 +13,11 @@ interface TabDrawersProps<T extends string> {
 }
 
 /**
- * The four content sections (Questions / Reading list / Patterns / LeetCode)
- * as card-catalog drawer labels, sitting on the cork board above the section
+ * The five content sections (Questions / Reading list / Patterns / LeetCode /
+ * Bug hunt) as card-catalog drawer labels, sitting on the cork board above the section
  * sidebar — the physical-index-card equivalent of a tab bar.
  *
- * The row wraps below `md`: four drawers do not fit across a phone, and a
+ * The row wraps below `md`: five drawers do not fit across a phone, and a
  * single non-wrapping row stretched the whole board wider than the viewport,
  * which pushed every card off-screen too.
  */

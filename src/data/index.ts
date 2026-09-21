@@ -17,6 +17,7 @@ export const questionsWithDeepDives: Question[] = rawQuestions.map((question) =>
 export { resourceGroups } from "./resources";
 export { leetcodeGroups } from "./leetcode";
 export { patternGroups, patternsById } from "./patterns";
+export { bugHuntGroups, bugHuntItems } from "./bughunt";
 export type {
   Question,
   ResourceGroup,
@@ -28,4 +29,7 @@ export type {
   PatternGroup,
   PatternId,
   SolutionApproach,
+  BugHuntItem,
+  BugHuntGroup,
+  BugCategoryId,
 } from "@/types/content";

@@ -209,3 +209,56 @@ export interface PatternGroup {
   gru: string;
   items: AlgoPattern[];
 }
+
+/**
+ * One "find the bug" card in the "Bug hunt" tab.
+ *
+ * The answer is a set of *line numbers* rather than prose, because the card
+ * is played, not read: the reader clicks the line they think is wrong and
+ * the card grades the click. Keeping the answer as data is what lets the
+ * grading live in one place instead of in each snippet's explanation.
+ */
+export interface BugHuntItem {
+  /** Stable slug — React key and the per-card progress key in localStorage. */
+  id: string;
+  /** Category tag (e.g. "C#", "Unity API") — powers the sidebar filter. */
+  c: BugCategoryId;
+  /** Scenario title, English (what the snippet is trying to do). */
+  t: string;
+  /** Scenario title, Russian. */
+  tru: string;
+  /**
+   * The snippet, as plain text. Rendered line by line as clickable buttons,
+   * never as HTML — `bug` below indexes into these lines, 1-based.
+   */
+  code: string;
+  /**
+   * 1-based line numbers that carry the defect. Several lines when the bug
+   * only exists as a pair (an allocation and the loop that repeats it);
+   * clicking any one of them counts as found.
+   */
+  bug: number[];
+  /** What is actually wrong, English. */
+  a: string;
+  /** What is actually wrong, Russian. */
+  aru: string;
+  /** How to fix it, English. */
+  fix: string;
+  /** How to fix it, Russian. */
+  fixru: string;
+}
+
+/** Categories of bug-hunt snippets, as a closed list (see `BugHuntItem.c`). */
+export const BUG_CATEGORY_IDS = ["csharp", "unity", "async", "physics", "perf"] as const;
+
+export type BugCategoryId = (typeof BUG_CATEGORY_IDS)[number];
+
+/** A themed group of bug-hunt snippets. */
+export interface BugHuntGroup {
+  id: BugCategoryId;
+  /** Group heading, English. */
+  g: string;
+  /** Group heading, Russian. */
+  gru: string;
+  items: BugHuntItem[];
+}
