@@ -1,6 +1,7 @@
 /**
- * "Deep dive" lesson bodies, keyed by question number. Extracted verbatim
- * from the legacy HTML app (only ~110 of the 310 questions have one).
+ * The original "deep dive" lesson bodies, keyed by question number —
+ * extracted verbatim from the legacy HTML app. Newer lessons live in the
+ * per-category files next to this one; `./index.ts` merges them all.
  *
  * Each value is trusted, hand-authored HTML (headings, <pre> code blocks,
  * tip/warning callouts, a further-reading list) — never user input. See
@@ -8,7 +9,7 @@
  * `DeepDiveModal` for why rendering it with `dangerouslySetInnerHTML` is
  * safe *for this specific, static dataset*.
  */
-export const deepDives: Record<number, string> = 
+export const baseDeepDives: Record<number, string> = 
 {
 1:`
 <h3>Простыми словами</h3>
